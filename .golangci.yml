@@ -1,0 +1,27 @@
+version: "2"
+linters:
+  default: all
+  disable:
+    - mnd
+    - wsl
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gocyclo
+          - gosmopolitan
+          - gosec
+  settings:
+    depguard:
+      rules:
+        main:
+          allow:
+            - $gostd
+          list-mode: lax
+          deny:
+            - pkg: "gopkg.in/yaml"
+              desc: "Deprecated Yaml Package choose again"
+    wsl_v5:
+      allow-first-in-block: true
+      allow-whole-block: false
+      branch-max-lines: 2
