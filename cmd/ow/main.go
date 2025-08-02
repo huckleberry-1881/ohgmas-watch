@@ -27,8 +27,52 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%dm", minutes)
 }
 
+// Function to check if a task has any closed segments within the time range.
+func taskHasSegmentsInRange(task *task.Task, start, finish *time.Time) bool {
+	for _, segment := range task.Segments {
+		if !segment.Finish.IsZero() {
+			// Check if segment finished within the time range
+			if start != nil && segment.Finish.Before(*start) {
+				continue
+			}
+			
+			if finish != nil && segment.Finish.After(*finish) {
+				continue
+			}
+			
+			// Found at least one segment in range
+			return true
+		}
+	}
+	
+	return false
+}
+
+// Function to get filtered closed segments duration within a time range.
+func getFilteredClosedSegmentsDuration(task *task.Task, start, finish *time.Time) time.Duration {
+	var totalDuration time.Duration
+
+	for _, segment := range task.Segments {
+		if !segment.Finish.IsZero() {
+			// Skip segments that finished before the start time
+			if start != nil && segment.Finish.Before(*start) {
+				continue
+			}
+			
+			// Skip segments that finished after the finish time
+			if finish != nil && segment.Finish.After(*finish) {
+				continue
+			}
+			
+			totalDuration += segment.Finish.Sub(segment.Create)
+		}
+	}
+
+	return totalDuration
+}
+
 // Function to generate summary by tagset.
-func generateSummary(includeTasks bool) error {
+func generateSummary(includeTasks bool, start, finish *time.Time) error {
 	// Load tasks
 	watch := &task.Watch{
 		Tasks: []*task.Task{},
@@ -48,6 +92,11 @@ func generateSummary(includeTasks bool) error {
 	tagsetMap := make(map[string]*tagsetInfo)
 
 	for _, currentTask := range watch.Tasks {
+		// Skip tasks that have no segments in the specified time range
+		if (start != nil || finish != nil) && !taskHasSegmentsInRange(currentTask, start, finish) {
+			continue
+		}
+		
 		// Create a sorted tagset key
 		tagset := make([]string, len(currentTask.Tags))
 		copy(tagset, currentTask.Tags)
@@ -66,7 +115,7 @@ func generateSummary(includeTasks bool) error {
 		}
 
 		tagsetMap[tagsetKey].tasks = append(tagsetMap[tagsetKey].tasks, currentTask)
-		tagsetMap[tagsetKey].duration += currentTask.GetClosedSegmentsDuration()
+		tagsetMap[tagsetKey].duration += getFilteredClosedSegmentsDuration(currentTask, start, finish)
 	}
 
 	// Sort tagsets by total duration (descending)
@@ -108,7 +157,7 @@ func generateSummary(includeTasks bool) error {
 		// If includeTasks is true, list individual tasks
 		if includeTasks {
 			for _, t := range entry.info.tasks {
-				taskDuration := t.GetClosedSegmentsDuration()
+				taskDuration := getFilteredClosedSegmentsDuration(t, start, finish)
 				var taskDurationStr string
 				if taskDuration == 0 {
 					taskDurationStr = "0m"
@@ -128,13 +177,37 @@ func main() {
 	// Define command line flags
 	summaryFlag := flag.Bool("summary", false, "Generate a summary of work completed by tagset")
 	tasksFlag := flag.Bool("tasks", false, "Include individual task details in summary (requires --summary)")
+	startFlag := flag.String("start", "", "Filter segments to only include those closed after this datetime (RFC3339 format: 2006-01-02T15:04:05Z)")
+	finishFlag := flag.String("finish", "", "Filter segments to only include those closed before this datetime (RFC3339 format: 2006-01-02T15:04:05Z)")
 
 	// Parse command line flags
 	flag.Parse()
 
 	// Check if summary flag was provided
 	if *summaryFlag {
-		err := generateSummary(*tasksFlag)
+		var start, finish *time.Time
+		
+		// Parse start time if provided
+		if *startFlag != "" {
+			parsedStart, err := time.Parse(time.RFC3339, *startFlag)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error parsing start time: %v\n", err)
+				os.Exit(1)
+			}
+			start = &parsedStart
+		}
+		
+		// Parse finish time if provided
+		if *finishFlag != "" {
+			parsedFinish, err := time.Parse(time.RFC3339, *finishFlag)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error parsing finish time: %v\n", err)
+				os.Exit(1)
+			}
+			finish = &parsedFinish
+		}
+		
+		err := generateSummary(*tasksFlag, start, finish)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
