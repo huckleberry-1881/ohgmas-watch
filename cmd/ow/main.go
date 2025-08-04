@@ -12,7 +12,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"ohgmas-watch/pkg/task"
+	"github.com/huckleberry-1881/ohgmas-watch/pkg/task"
 )
 
 // Helper function to format duration.
@@ -35,16 +35,16 @@ func taskHasSegmentsInRange(task *task.Task, start, finish *time.Time) bool {
 			if start != nil && segment.Finish.Before(*start) {
 				continue
 			}
-			
+
 			if finish != nil && segment.Finish.After(*finish) {
 				continue
 			}
-			
+
 			// Found at least one segment in range
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -58,12 +58,12 @@ func getFilteredClosedSegmentsDuration(task *task.Task, start, finish *time.Time
 			if start != nil && segment.Finish.Before(*start) {
 				continue
 			}
-			
+
 			// Skip segments that finished after the finish time
 			if finish != nil && segment.Finish.After(*finish) {
 				continue
 			}
-			
+
 			totalDuration += segment.Finish.Sub(segment.Create)
 		}
 	}
@@ -96,7 +96,7 @@ func generateSummary(includeTasks bool, start, finish *time.Time) error {
 		if (start != nil || finish != nil) && !taskHasSegmentsInRange(currentTask, start, finish) {
 			continue
 		}
-		
+
 		// Create a sorted tagset key
 		tagset := make([]string, len(currentTask.Tags))
 		copy(tagset, currentTask.Tags)
@@ -186,7 +186,7 @@ func main() {
 	// Check if summary flag was provided
 	if *summaryFlag {
 		var start, finish *time.Time
-		
+
 		// Parse start time if provided
 		if *startFlag != "" {
 			parsedStart, err := time.Parse(time.RFC3339, *startFlag)
@@ -196,7 +196,7 @@ func main() {
 			}
 			start = &parsedStart
 		}
-		
+
 		// Parse finish time if provided
 		if *finishFlag != "" {
 			parsedFinish, err := time.Parse(time.RFC3339, *finishFlag)
@@ -206,7 +206,7 @@ func main() {
 			}
 			finish = &parsedFinish
 		}
-		
+
 		err := generateSummary(*tasksFlag, start, finish)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
