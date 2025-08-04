@@ -1,4 +1,4 @@
-module ohgmas-watch
+module github.com/huckleberry-1881/ohgmas-watch
 
 go 1.24.5
 
