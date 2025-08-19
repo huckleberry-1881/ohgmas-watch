@@ -55,7 +55,7 @@ func TestAddTask(t *testing.T) {
 			watch := &Watch{Tasks: []*Task{}}
 			initialTaskCount := len(watch.Tasks)
 
-			watch.AddTask(testCase.taskName, testCase.description, testCase.tags)
+			watch.AddTask(testCase.taskName, testCase.description, testCase.tags, "work")
 
 			if len(watch.Tasks) != initialTaskCount+1 {
 				t.Errorf("Expected %d tasks, got %d", initialTaskCount+1, len(watch.Tasks))

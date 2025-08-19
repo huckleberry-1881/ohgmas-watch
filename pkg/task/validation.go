@@ -20,7 +20,7 @@ func ValidateTask(name, _ string, tags []string) error {
 	if strings.TrimSpace(name) == "" {
 		return ErrEmptyTaskName
 	}
-	
+
 	// Clean tags - remove empty strings
 	_ = make([]string, 0, len(tags))
 	for _, tag := range tags {
@@ -29,7 +29,7 @@ func ValidateTask(name, _ string, tags []string) error {
 			_ = trimmed // Acknowledge we checked the tag
 		}
 	}
-	
+
 	return nil
 }
 

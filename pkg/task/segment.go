@@ -6,7 +6,7 @@ import "time"
 func (t *Task) HasSegmentsInRange(start, finish *time.Time) bool {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	
+
 	for _, segment := range t.Segments {
 		if !segment.Finish.IsZero() {
 			// Check if segment finished within the time range
@@ -29,7 +29,7 @@ func (t *Task) HasSegmentsInRange(start, finish *time.Time) bool {
 func (t *Task) GetFilteredClosedSegmentsDuration(start, finish *time.Time) time.Duration {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	
+
 	var totalDuration time.Duration
 
 	for _, segment := range t.Segments {
@@ -53,11 +53,11 @@ func (t *Task) GetFilteredClosedSegmentsDuration(start, finish *time.Time) time.
 func (t *Task) GetLastActivity() time.Time {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	
+
 	if len(t.Segments) == 0 {
 		return time.Time{}
 	}
-	
+
 	lastSegment := t.Segments[len(t.Segments)-1]
 	if lastSegment.Finish.IsZero() {
 		return lastSegment.Create // Use start time for open segments
@@ -75,11 +75,11 @@ func (t *Task) IsActive() bool {
 func (t *Task) GetCurrentSegmentDuration() time.Duration {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	
+
 	if len(t.Segments) == 0 {
 		return 0
 	}
-	
+
 	lastSegment := t.Segments[len(t.Segments)-1]
 	if lastSegment.Finish.IsZero() {
 		return time.Since(lastSegment.Create)
@@ -92,10 +92,27 @@ func (t *Task) GetCurrentSegmentDuration() time.Duration {
 func (t *Task) GetLastSegment() *Segment {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	
+
 	if len(t.Segments) == 0 {
 		return nil
 	}
 
 	return t.Segments[len(t.Segments)-1]
+}
+
+// GetThisWeekDuration calculates total duration of closed segments completed since the given start time.
+func (t *Task) GetThisWeekDuration(weekStart time.Time) time.Duration {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	var totalDuration time.Duration
+
+	for _, segment := range t.Segments {
+		// Only include closed segments that finished after the week start
+		if !segment.Finish.IsZero() && segment.Finish.After(weekStart) {
+			totalDuration += segment.Finish.Sub(segment.Create)
+		}
+	}
+
+	return totalDuration
 }

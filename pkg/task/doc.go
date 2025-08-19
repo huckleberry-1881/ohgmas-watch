@@ -10,13 +10,13 @@ Basic usage:
 
 	watch := &task.Watch{Tasks: []*task.Task{}}
 	watch.AddTask("Feature Development", "Working on new feature", []string{"work", "coding"})
-	
+
 	// Start a work segment
 	watch.Tasks[0].AddSegment("Implementing API endpoints")
-	
+
 	// Later, close the segment
 	watch.Tasks[0].CloseSegment()
-	
+
 	// Save to file
 	err := watch.SaveTasks()
 

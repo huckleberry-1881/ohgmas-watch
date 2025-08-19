@@ -16,6 +16,7 @@ type Task struct {
 	Name        string       `yaml:"name"`
 	Description string       `yaml:"description"`
 	Tags        []string     `yaml:"tags"`
+	Category    string       `yaml:"category"`
 	Segments    []*Segment   `yaml:"segments"`
 	mu          sync.RWMutex `yaml:"-"` // mutex for thread-safe segment operations
 }
