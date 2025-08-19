@@ -5,25 +5,33 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/goccy/go-yaml"
 )
 
-// AddTask adds a new task to a watch.
+// AddTask adds a new task to a watch (thread-safe).
 func (w *Watch) AddTask(name string, description string, tags []string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	
 	newTask := Task{
 		Name:        name,
 		Description: description,
 		Tags:        tags,
 		Segments:    []*Segment{},
+		mu:          sync.RWMutex{},
 	}
 
 	w.Tasks = append(w.Tasks, &newTask)
 }
 
-// AddSegment adds a new segment to a task.
+// AddSegment adds a new segment to a task (thread-safe).
 func (t *Task) AddSegment(note string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	
 	newSeg := Segment{
 		Note:   note,
 		Create: time.Now(),
@@ -33,8 +41,11 @@ func (t *Task) AddSegment(note string) {
 	t.Segments = append(t.Segments, &newSeg)
 }
 
-// CloseSegment closes an open segment.
+// CloseSegment closes an open segment (thread-safe).
 func (t *Task) CloseSegment() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	
 	for _, segment := range t.Segments {
 		if segment.Finish.IsZero() {
 			segment.Finish = time.Now()
@@ -42,8 +53,11 @@ func (t *Task) CloseSegment() {
 	}
 }
 
-// HasUnclosedSegment checks if a task has unclosed segments.
+// HasUnclosedSegment checks if a task has unclosed segments (thread-safe).
 func (t *Task) HasUnclosedSegment() bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	
 	for _, segment := range t.Segments {
 		if segment.Finish.IsZero() {
 			return true
@@ -53,8 +67,11 @@ func (t *Task) HasUnclosedSegment() bool {
 	return false
 }
 
-// GetClosedSegmentsDuration calculates total duration of closed segments.
+// GetClosedSegmentsDuration calculates total duration of closed segments (thread-safe).
 func (t *Task) GetClosedSegmentsDuration() time.Duration {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	
 	var totalDuration time.Duration
 
 	for _, segment := range t.Segments {
