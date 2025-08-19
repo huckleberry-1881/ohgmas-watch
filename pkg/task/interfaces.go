@@ -4,7 +4,7 @@ import "time"
 
 // Manager defines the interface for task management operations.
 type Manager interface {
-	AddTask(name, description string, tags []string)
+	AddTask(name, description string, tags []string, category string)
 	GetTasksSortedByActivity() []*Task
 	GetSummaryByTagset(start, finish *time.Time) []TagsetSummary
 	SaveTasks() error

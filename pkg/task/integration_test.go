@@ -13,7 +13,7 @@ func TestTaskWorkflow(t *testing.T) {
 	watch := &Watch{Tasks: []*Task{}}
 
 	// Add a task
-	watch.AddTask("Feature Development", "Implement new user authentication", []string{"development", "security"})
+	watch.AddTask("Feature Development", "Implement new user authentication", []string{"development", "security"}, "work")
 
 	if len(watch.Tasks) != 1 {
 		t.Fatalf("Expected 1 task, got %d", len(watch.Tasks))
@@ -109,7 +109,7 @@ func TestMultipleTasksWorkflow(t *testing.T) {
 	}
 
 	for _, td := range taskData {
-		watch.AddTask(td.name, td.description, td.tags)
+		watch.AddTask(td.name, td.description, td.tags, "work")
 	}
 
 	if len(watch.Tasks) != len(taskData) {
@@ -314,7 +314,7 @@ func TestEdgeCaseEmptyOperations(t *testing.T) {
 		watch := &Watch{Tasks: []*Task{}}
 
 		// Should be able to add tasks
-		watch.AddTask("Test", "Description", []string{"tag"})
+		watch.AddTask("Test", "Description", []string{"tag"}, "work")
 
 		if len(watch.Tasks) != 1 {
 			t.Errorf("Expected 1 task, got %d", len(watch.Tasks))
@@ -327,7 +327,7 @@ func TestEdgeCaseEmptyOperations(t *testing.T) {
 		watch := &Watch{Tasks: nil}
 
 		// AddTask should work and initialize the slice
-		watch.AddTask("Test", "Description", []string{"tag"})
+		watch.AddTask("Test", "Description", []string{"tag"}, "work")
 
 		if len(watch.Tasks) != 1 {
 			t.Errorf("Expected 1 task after AddTask, got %d", len(watch.Tasks))
@@ -352,7 +352,7 @@ func TestLargeNumberOfOperations(t *testing.T) {
 	// Add many tasks
 
 	for range numTasks {
-		watch.AddTask("Task", "Description", []string{"tag"})
+		watch.AddTask("Task", "Description", []string{"tag"}, "work")
 	}
 
 	if len(watch.Tasks) != numTasks {

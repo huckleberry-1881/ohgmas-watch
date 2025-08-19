@@ -9,7 +9,7 @@ import (
 func formatDuration(d time.Duration) string {
 	hours := int(d.Hours())
 	minutes := int(d.Minutes()) % 60
-	
+
 	if hours > 0 {
 		return fmt.Sprintf("%dh%02dm", hours, minutes)
 	}
@@ -20,7 +20,7 @@ func formatDuration(d time.Duration) string {
 // parseTimeFlags parses start and finish time flags.
 func parseTimeFlags(startFlag, finishFlag string) (*time.Time, *time.Time, error) {
 	var start, finish *time.Time
-	
+
 	if startFlag != "" {
 		parsedStart, err := time.Parse(time.RFC3339, startFlag)
 		if err != nil {
@@ -29,7 +29,7 @@ func parseTimeFlags(startFlag, finishFlag string) (*time.Time, *time.Time, error
 
 		start = &parsedStart
 	}
-	
+
 	if finishFlag != "" {
 		parsedFinish, err := time.Parse(time.RFC3339, finishFlag)
 		if err != nil {
@@ -38,6 +38,28 @@ func parseTimeFlags(startFlag, finishFlag string) (*time.Time, *time.Time, error
 
 		finish = &parsedFinish
 	}
-	
+
 	return start, finish, nil
+}
+
+// getLastMonday returns the time of the most recent Monday at 00:00:00.
+func getLastMonday() time.Time {
+	now := time.Now()
+
+	// Get the current weekday (0 = Sunday, 1 = Monday, etc.)
+	currentWeekday := int(now.Weekday())
+
+	// Calculate days to subtract to get to Monday
+	var daysBack int
+	if currentWeekday == 0 { // Sunday
+		daysBack = 6
+	} else { // Monday (1) through Saturday (6)
+		daysBack = currentWeekday - 1
+	}
+
+	// Get Monday's date
+	monday := now.AddDate(0, 0, -daysBack)
+
+	// Set to beginning of day (00:00:00)
+	return time.Date(monday.Year(), monday.Month(), monday.Day(), 0, 0, 0, 0, monday.Location())
 }

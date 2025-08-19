@@ -9,7 +9,7 @@ func TestHasSegmentsInRange(t *testing.T) {
 	t.Parallel()
 
 	baseTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
-	
+
 	tests := []struct {
 		name     string
 		segments []*Segment
@@ -18,10 +18,10 @@ func TestHasSegmentsInRange(t *testing.T) {
 		expected bool
 	}{
 		{
-			name: "no segments",
+			name:     "no segments",
 			segments: []*Segment{},
-			start: nil,
-			finish: nil,
+			start:    nil,
+			finish:   nil,
 			expected: false,
 		},
 		{
@@ -29,8 +29,8 @@ func TestHasSegmentsInRange(t *testing.T) {
 			segments: []*Segment{
 				{Create: baseTime, Finish: time.Time{}},
 			},
-			start: nil,
-			finish: nil,
+			start:    nil,
+			finish:   nil,
 			expected: false,
 		},
 		{
@@ -38,8 +38,8 @@ func TestHasSegmentsInRange(t *testing.T) {
 			segments: []*Segment{
 				{Create: baseTime, Finish: baseTime.Add(time.Hour)},
 			},
-			start: nil,
-			finish: nil,
+			start:    nil,
+			finish:   nil,
 			expected: true,
 		},
 		{
@@ -47,8 +47,8 @@ func TestHasSegmentsInRange(t *testing.T) {
 			segments: []*Segment{
 				{Create: baseTime, Finish: baseTime.Add(time.Hour)},
 			},
-			start: func() *time.Time { t := baseTime.Add(2 * time.Hour); return &t }(),
-			finish: nil,
+			start:    func() *time.Time { t := baseTime.Add(2 * time.Hour); return &t }(),
+			finish:   nil,
 			expected: false,
 		},
 		{
@@ -56,8 +56,8 @@ func TestHasSegmentsInRange(t *testing.T) {
 			segments: []*Segment{
 				{Create: baseTime.Add(3 * time.Hour), Finish: baseTime.Add(4 * time.Hour)},
 			},
-			start: nil,
-			finish: func() *time.Time { t := baseTime.Add(2 * time.Hour); return &t }(),
+			start:    nil,
+			finish:   func() *time.Time { t := baseTime.Add(2 * time.Hour); return &t }(),
 			expected: false,
 		},
 		{
@@ -65,8 +65,8 @@ func TestHasSegmentsInRange(t *testing.T) {
 			segments: []*Segment{
 				{Create: baseTime.Add(time.Hour), Finish: baseTime.Add(2 * time.Hour)},
 			},
-			start: func() *time.Time { t := baseTime; return &t }(),
-			finish: func() *time.Time { t := baseTime.Add(3 * time.Hour); return &t }(),
+			start:    func() *time.Time { t := baseTime; return &t }(),
+			finish:   func() *time.Time { t := baseTime.Add(3 * time.Hour); return &t }(),
 			expected: true,
 		},
 	}
@@ -74,12 +74,12 @@ func TestHasSegmentsInRange(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			
+
 			task := &Task{
-				Name: "Test Task",
+				Name:     "Test Task",
 				Segments: tc.segments,
 			}
-			
+
 			result := task.HasSegmentsInRange(tc.start, tc.finish)
 			if result != tc.expected {
 				t.Errorf("Expected %v, got %v", tc.expected, result)
@@ -92,7 +92,7 @@ func TestGetFilteredClosedSegmentsDuration(t *testing.T) {
 	t.Parallel()
 
 	baseTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
-	
+
 	tests := []struct {
 		name     string
 		segments []*Segment
@@ -101,10 +101,10 @@ func TestGetFilteredClosedSegmentsDuration(t *testing.T) {
 		expected time.Duration
 	}{
 		{
-			name: "no segments",
+			name:     "no segments",
 			segments: []*Segment{},
-			start: nil,
-			finish: nil,
+			start:    nil,
+			finish:   nil,
 			expected: 0,
 		},
 		{
@@ -113,8 +113,8 @@ func TestGetFilteredClosedSegmentsDuration(t *testing.T) {
 				{Create: baseTime, Finish: baseTime.Add(time.Hour)},
 				{Create: baseTime.Add(2 * time.Hour), Finish: baseTime.Add(3 * time.Hour)},
 			},
-			start: nil,
-			finish: nil,
+			start:    nil,
+			finish:   nil,
 			expected: 2 * time.Hour,
 		},
 		{
@@ -123,8 +123,8 @@ func TestGetFilteredClosedSegmentsDuration(t *testing.T) {
 				{Create: baseTime, Finish: baseTime.Add(time.Hour)},
 				{Create: baseTime.Add(2 * time.Hour), Finish: baseTime.Add(3 * time.Hour)},
 			},
-			start: func() *time.Time { t := baseTime.Add(90 * time.Minute); return &t }(),
-			finish: nil,
+			start:    func() *time.Time { t := baseTime.Add(90 * time.Minute); return &t }(),
+			finish:   nil,
 			expected: time.Hour,
 		},
 		{
@@ -133,8 +133,8 @@ func TestGetFilteredClosedSegmentsDuration(t *testing.T) {
 				{Create: baseTime, Finish: baseTime.Add(time.Hour)},
 				{Create: baseTime.Add(2 * time.Hour), Finish: baseTime.Add(3 * time.Hour)},
 			},
-			start: nil,
-			finish: func() *time.Time { t := baseTime.Add(90 * time.Minute); return &t }(),
+			start:    nil,
+			finish:   func() *time.Time { t := baseTime.Add(90 * time.Minute); return &t }(),
 			expected: time.Hour,
 		},
 	}
@@ -142,12 +142,12 @@ func TestGetFilteredClosedSegmentsDuration(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			
+
 			task := &Task{
-				Name: "Test Task",
+				Name:     "Test Task",
 				Segments: tc.segments,
 			}
-			
+
 			result := task.GetFilteredClosedSegmentsDuration(tc.start, tc.finish)
 			if result != tc.expected {
 				t.Errorf("Expected %v, got %v", tc.expected, result)
@@ -160,14 +160,14 @@ func TestGetLastActivity(t *testing.T) {
 	t.Parallel()
 
 	baseTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
-	
+
 	tests := []struct {
 		name     string
 		segments []*Segment
 		expected time.Time
 	}{
 		{
-			name: "no segments",
+			name:     "no segments",
 			segments: []*Segment{},
 			expected: time.Time{},
 		},
@@ -206,12 +206,12 @@ func TestGetLastActivity(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			
+
 			task := &Task{
-				Name: "Test Task",
+				Name:     "Test Task",
 				Segments: tc.segments,
 			}
-			
+
 			result := task.GetLastActivity()
 			if !result.Equal(tc.expected) {
 				t.Errorf("Expected %v, got %v", tc.expected, result)
@@ -224,14 +224,14 @@ func TestIsActive(t *testing.T) {
 	t.Parallel()
 
 	baseTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
-	
+
 	tests := []struct {
 		name     string
 		segments []*Segment
 		expected bool
 	}{
 		{
-			name: "no segments",
+			name:     "no segments",
 			segments: []*Segment{},
 			expected: false,
 		},
@@ -254,12 +254,12 @@ func TestIsActive(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			
+
 			task := &Task{
-				Name: "Test Task",
+				Name:     "Test Task",
 				Segments: tc.segments,
 			}
-			
+
 			result := task.IsActive()
 			if result != tc.expected {
 				t.Errorf("Expected %v, got %v", tc.expected, result)
@@ -277,7 +277,7 @@ func TestGetCurrentSegmentDuration(t *testing.T) {
 		expected bool // true if duration should be > 0
 	}{
 		{
-			name: "no segments",
+			name:     "no segments",
 			segments: []*Segment{},
 			expected: false,
 		},
@@ -300,12 +300,12 @@ func TestGetCurrentSegmentDuration(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			
+
 			task := &Task{
-				Name: "Test Task",
+				Name:     "Test Task",
 				Segments: tc.segments,
 			}
-			
+
 			result := task.GetCurrentSegmentDuration()
 			if tc.expected && result == 0 {
 				t.Error("Expected duration > 0, got 0")
@@ -321,14 +321,14 @@ func TestGetLastSegment(t *testing.T) {
 	t.Parallel()
 
 	baseTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
-	
+
 	tests := []struct {
 		name     string
 		segments []*Segment
 		expected *Segment
 	}{
 		{
-			name: "no segments",
+			name:     "no segments",
 			segments: []*Segment{},
 			expected: nil,
 		},
@@ -352,12 +352,12 @@ func TestGetLastSegment(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			
+
 			task := &Task{
-				Name: "Test Task",
+				Name:     "Test Task",
 				Segments: tc.segments,
 			}
-			
+
 			result := task.GetLastSegment()
 			if tc.expected == nil {
 				if result != nil {

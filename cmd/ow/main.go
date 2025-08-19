@@ -14,7 +14,6 @@ import (
 	"github.com/huckleberry-1881/ohgmas-watch/pkg/task"
 )
 
-
 // Function to generate summary by tagset.
 func generateSummary(includeTasks bool, start, finish *time.Time) error {
 	// Load tasks
@@ -136,15 +135,23 @@ func main() {
 		SetTextColor(tcell.ColorYellow).
 		SetSelectable(false).
 		SetAlign(tview.AlignLeft))
-	table.SetCell(0, 2, tview.NewTableCell("Tags").
-		SetTextColor(tcell.ColorYellow).
-		SetSelectable(false).
-		SetAlign(tview.AlignLeft))
-	table.SetCell(0, 3, tview.NewTableCell("Last Activity").
+	table.SetCell(0, 2, tview.NewTableCell("Category").
 		SetTextColor(tcell.ColorYellow).
 		SetSelectable(false).
 		SetAlign(tview.AlignCenter))
-	table.SetCell(0, 4, tview.NewTableCell("Duration").
+	table.SetCell(0, 3, tview.NewTableCell("Tags").
+		SetTextColor(tcell.ColorYellow).
+		SetSelectable(false).
+		SetAlign(tview.AlignLeft))
+	table.SetCell(0, 4, tview.NewTableCell("Last Activity").
+		SetTextColor(tcell.ColorYellow).
+		SetSelectable(false).
+		SetAlign(tview.AlignCenter))
+	table.SetCell(0, 5, tview.NewTableCell("This Week").
+		SetTextColor(tcell.ColorYellow).
+		SetSelectable(false).
+		SetAlign(tview.AlignRight))
+	table.SetCell(0, 6, tview.NewTableCell("Duration").
 		SetTextColor(tcell.ColorYellow).
 		SetSelectable(false).
 		SetAlign(tview.AlignRight))
@@ -160,11 +167,17 @@ func main() {
 		SetDynamicColors(true).
 		SetText("[yellow]Commands:[white] ↑/↓ Navigate | [green]Enter[white] Segment Details | " +
 			"[green]t[white] New Task | [green]s[white] New Segment | [green]n[white] New Segment w/ Note | " +
-			"[green]e[white] End Segment | [red]Ctrl+C[white] Exit")
+			"[green]e[white] End Segment | [blue]c[white] Completed | [blue]w[white] Work | [blue]b[white] Backlog | " +
+			"[purple]f[white] Filter | [red]Ctrl+C[white] Exit")
 	commandText.SetBorder(true).SetTitle("Commands")
 
 	// Map from table row to original task index in watch.Tasks
 	var tableRowToTaskIndex []int
+
+	// Current category filter (empty means show all)
+	var currentCategoryFilter string
+	categoryFilters := []string{"", "completed", "work", "backlog"} // "" = all
+	filterIndex := 0
 
 	// Helper function to get original task index from table row
 	getTaskIndex := func(tableRow int) int {
@@ -189,11 +202,18 @@ func main() {
 			table.RemoveRow(r)
 		}
 
-		// Get tasks sorted by last activity
-		sortedTasks := watch.GetTasksSortedByActivity()
+		// Get tasks sorted by last activity (with optional category filter)
+		sortedTasks := watch.GetTasksSortedByActivityWithFilter(currentCategoryFilter)
+
+		// Update table title to show current filter
+		filterTitle := "Tasks"
+		if currentCategoryFilter != "" {
+			filterTitle = fmt.Sprintf("Tasks (%s)", currentCategoryFilter)
+		}
+		table.SetTitle(filterTitle)
 
 		// Update the row-to-task mapping
-		tableRowToTaskIndex = make([]int, len(watch.Tasks))
+		tableRowToTaskIndex = make([]int, len(sortedTasks))
 		for i, t := range sortedTasks {
 			tableRowToTaskIndex[i] = watch.GetTaskIndex(t)
 		}
@@ -214,6 +234,26 @@ func main() {
 			nameCell := tview.NewTableCell(task.Name).
 				SetTextColor(tcell.ColorWhite).
 				SetAlign(tview.AlignLeft)
+
+			// Category column
+			category := task.GetCategory()
+			if category == "" {
+				category = "work" // Default for existing tasks
+			}
+			var categoryColor tcell.Color
+			switch category {
+			case "completed":
+				categoryColor = tcell.ColorGreen
+			case "work":
+				categoryColor = tcell.ColorYellow
+			case "backlog":
+				categoryColor = tcell.ColorGray
+			default:
+				categoryColor = tcell.ColorWhite
+			}
+			categoryCell := tview.NewTableCell(category).
+				SetTextColor(categoryColor).
+				SetAlign(tview.AlignCenter)
 
 			// Tags column
 			tagsText := ""
@@ -240,6 +280,17 @@ func main() {
 				SetTextColor(lastActivityColor).
 				SetAlign(tview.AlignCenter)
 
+			// This Week column
+			weekStart := getLastMonday()
+			thisWeekDuration := task.GetThisWeekDuration(weekStart)
+			thisWeekText := "0m"
+			if thisWeekDuration > 0 {
+				thisWeekText = formatDuration(thisWeekDuration)
+			}
+			thisWeekCell := tview.NewTableCell(thisWeekText).
+				SetTextColor(tcell.ColorLightBlue).
+				SetAlign(tview.AlignRight)
+
 			// Duration column
 			duration := task.GetClosedSegmentsDuration()
 			durationText := "0m"
@@ -253,13 +304,15 @@ func main() {
 			// Set cells in the table
 			table.SetCell(row, 0, statusCell)
 			table.SetCell(row, 1, nameCell)
-			table.SetCell(row, 2, tagsCell)
-			table.SetCell(row, 3, lastActivityCell)
-			table.SetCell(row, 4, durationCell)
+			table.SetCell(row, 2, categoryCell)
+			table.SetCell(row, 3, tagsCell)
+			table.SetCell(row, 4, lastActivityCell)
+			table.SetCell(row, 5, thisWeekCell)
+			table.SetCell(row, 6, durationCell)
 		}
 
-		// If we have tasks, select the first data row (row 1)
-		if len(watch.Tasks) > 0 {
+		// If we have filtered tasks, select the first data row (row 1)
+		if len(sortedTasks) > 0 {
 			table.Select(1, 0)
 		}
 	}
@@ -348,7 +401,7 @@ func main() {
 					}
 				}
 
-				watch.AddTask(name, description, tagList)
+				watch.AddTask(name, description, tagList, "work")
 
 				saveAndRefresh()
 				app.SetRoot(mainLayout, true)
@@ -456,6 +509,25 @@ func main() {
 		saveAndRefresh()
 	}
 
+	// Function to change task category
+	changeTaskCategory := func(category string) {
+		row, _ := table.GetSelection()
+		currentIndex := getTaskIndex(row)
+		if currentIndex < 0 || currentIndex >= len(watch.Tasks) {
+			return // No task selected
+		}
+
+		watch.Tasks[currentIndex].SetCategory(category)
+		saveAndRefresh()
+	}
+
+	// Function to cycle through category filters
+	cycleCategoryFilter := func() {
+		filterIndex = (filterIndex + 1) % len(categoryFilters)
+		currentCategoryFilter = categoryFilters[filterIndex]
+		saveAndRefresh()
+	}
+
 	// Function to show segment details for the selected task
 	showSegmentDetails := func() {
 		row, _ := table.GetSelection()
@@ -552,6 +624,22 @@ func main() {
 			return nil
 		case event.Rune() == 'e':
 			endSegment()
+
+			return nil
+		case event.Rune() == 'c':
+			changeTaskCategory("completed")
+
+			return nil
+		case event.Rune() == 'w':
+			changeTaskCategory("work")
+
+			return nil
+		case event.Rune() == 'b':
+			changeTaskCategory("backlog")
+
+			return nil
+		case event.Rune() == 'f':
+			cycleCategoryFilter()
 
 			return nil
 		case event.Key() == tcell.KeyEnter:
