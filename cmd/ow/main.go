@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -15,61 +14,6 @@ import (
 	"github.com/huckleberry-1881/ohgmas-watch/pkg/task"
 )
 
-// Helper function to format duration.
-func formatDuration(d time.Duration) string {
-	hours := int(d.Hours())
-
-	minutes := int(d.Minutes()) % 60
-	if hours > 0 {
-		return fmt.Sprintf("%dh%02dm", hours, minutes)
-	}
-
-	return fmt.Sprintf("%dm", minutes)
-}
-
-// Function to check if a task has any closed segments within the time range.
-func taskHasSegmentsInRange(task *task.Task, start, finish *time.Time) bool {
-	for _, segment := range task.Segments {
-		if !segment.Finish.IsZero() {
-			// Check if segment finished within the time range
-			if start != nil && segment.Finish.Before(*start) {
-				continue
-			}
-
-			if finish != nil && segment.Finish.After(*finish) {
-				continue
-			}
-
-			// Found at least one segment in range
-			return true
-		}
-	}
-
-	return false
-}
-
-// Function to get filtered closed segments duration within a time range.
-func getFilteredClosedSegmentsDuration(task *task.Task, start, finish *time.Time) time.Duration {
-	var totalDuration time.Duration
-
-	for _, segment := range task.Segments {
-		if !segment.Finish.IsZero() {
-			// Skip segments that finished before the start time
-			if start != nil && segment.Finish.Before(*start) {
-				continue
-			}
-
-			// Skip segments that finished after the finish time
-			if finish != nil && segment.Finish.After(*finish) {
-				continue
-			}
-
-			totalDuration += segment.Finish.Sub(segment.Create)
-		}
-	}
-
-	return totalDuration
-}
 
 // Function to generate summary by tagset.
 func generateSummary(includeTasks bool, start, finish *time.Time) error {
@@ -83,60 +27,13 @@ func generateSummary(includeTasks bool, start, finish *time.Time) error {
 		return fmt.Errorf("failed to load tasks: %w", err)
 	}
 
-	// Group tasks by tagset (combination of tags)
-	type tagsetInfo struct {
-		tasks    []*task.Task
-		duration time.Duration
-	}
-
-	tagsetMap := make(map[string]*tagsetInfo)
-
-	for _, currentTask := range watch.Tasks {
-		// Skip tasks that have no segments in the specified time range
-		if (start != nil || finish != nil) && !taskHasSegmentsInRange(currentTask, start, finish) {
-			continue
-		}
-
-		// Create a sorted tagset key
-		tagset := make([]string, len(currentTask.Tags))
-		copy(tagset, currentTask.Tags)
-		sort.Strings(tagset)
-
-		tagsetKey := strings.Join(tagset, ", ")
-		if tagsetKey == "" {
-			tagsetKey = "(no tags)"
-		}
-
-		if tagsetMap[tagsetKey] == nil {
-			tagsetMap[tagsetKey] = &tagsetInfo{
-				tasks:    []*task.Task{},
-				duration: 0,
-			}
-		}
-
-		tagsetMap[tagsetKey].tasks = append(tagsetMap[tagsetKey].tasks, currentTask)
-		tagsetMap[tagsetKey].duration += getFilteredClosedSegmentsDuration(currentTask, start, finish)
-	}
-
-	// Sort tagsets by total duration (descending)
-	type tagsetEntry struct {
-		tagset string
-		info   *tagsetInfo
-	}
-
-	entries := make([]tagsetEntry, 0, len(tagsetMap))
-	for tagset, info := range tagsetMap {
-		entries = append(entries, tagsetEntry{tagset: tagset, info: info})
-	}
-
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].info.duration > entries[j].info.duration
-	})
+	// Get summary by tagset
+	summaries := watch.GetSummaryByTagset(start, finish)
 
 	// Print summary
-	for _, entry := range entries {
-		taskCount := len(entry.info.tasks)
-		duration := entry.info.duration
+	for _, summary := range summaries {
+		taskCount := len(summary.Tasks)
+		duration := summary.Duration
 
 		// Format duration for display
 		var durationStr string
@@ -152,12 +49,13 @@ func generateSummary(includeTasks bool, start, finish *time.Time) error {
 			taskWord = "task"
 		}
 
-		fmt.Printf("%s totaling %d %s and %s\n", entry.tagset, taskCount, taskWord, durationStr)
+		_, _ = fmt.Fprintf(os.Stdout, "%s totaling %d %s and %s\n", summary.Tagset, taskCount, taskWord, durationStr)
 
 		// If includeTasks is true, list individual tasks
 		if includeTasks {
-			for _, t := range entry.info.tasks {
-				taskDuration := getFilteredClosedSegmentsDuration(t, start, finish)
+			for _, taskItem := range summary.Tasks {
+				taskDuration := taskItem.GetFilteredClosedSegmentsDuration(start, finish)
+
 				var taskDurationStr string
 				if taskDuration == 0 {
 					taskDurationStr = "0m"
@@ -165,7 +63,7 @@ func generateSummary(includeTasks bool, start, finish *time.Time) error {
 					taskDurationStr = formatDuration(taskDuration)
 				}
 
-				fmt.Printf("  Task: %s %s\n", t.Name, taskDurationStr)
+				_, _ = fmt.Fprintf(os.Stdout, "  Task: %s %s\n", taskItem.Name, taskDurationStr)
 			}
 		}
 	}
@@ -177,37 +75,23 @@ func main() {
 	// Define command line flags
 	summaryFlag := flag.Bool("summary", false, "Generate a summary of work completed by tagset")
 	tasksFlag := flag.Bool("tasks", false, "Include individual task details in summary (requires --summary)")
-	startFlag := flag.String("start", "", "Filter segments to only include those closed after this datetime (RFC3339 format: 2006-01-02T15:04:05Z)")
-	finishFlag := flag.String("finish", "", "Filter segments to only include those closed before this datetime (RFC3339 format: 2006-01-02T15:04:05Z)")
+	startFlag := flag.String("start", "",
+		"Filter segments to only include those closed after this datetime (RFC3339 format: 2006-01-02T15:04:05Z)")
+	finishFlag := flag.String("finish", "",
+		"Filter segments to only include those closed before this datetime (RFC3339 format: 2006-01-02T15:04:05Z)")
 
 	// Parse command line flags
 	flag.Parse()
 
 	// Check if summary flag was provided
 	if *summaryFlag {
-		var start, finish *time.Time
-
-		// Parse start time if provided
-		if *startFlag != "" {
-			parsedStart, err := time.Parse(time.RFC3339, *startFlag)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error parsing start time: %v\n", err)
-				os.Exit(1)
-			}
-			start = &parsedStart
+		start, finish, err := parseTimeFlags(*startFlag, *finishFlag)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
 		}
 
-		// Parse finish time if provided
-		if *finishFlag != "" {
-			parsedFinish, err := time.Parse(time.RFC3339, *finishFlag)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error parsing finish time: %v\n", err)
-				os.Exit(1)
-			}
-			finish = &parsedFinish
-		}
-
-		err := generateSummary(*tasksFlag, start, finish)
+		err = generateSummary(*tasksFlag, start, finish)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
@@ -305,73 +189,22 @@ func main() {
 			table.RemoveRow(r)
 		}
 
-		// Create a sorted copy of tasks by last activity date (most recent first)
-		sortedTasks := make([]*task.Task, len(watch.Tasks))
-		copy(sortedTasks, watch.Tasks)
-
-		// Create index mapping for sorting
-		taskIndices := make([]int, len(watch.Tasks))
-		for i := range taskIndices {
-			taskIndices[i] = i
-		}
-
-		sort.Slice(taskIndices, func(i, j int) bool {
-			taskA, taskB := watch.Tasks[taskIndices[i]], watch.Tasks[taskIndices[j]]
-
-			// Get last activity time for task A
-			var lastActivityA time.Time
-
-			if len(taskA.Segments) > 0 {
-				lastSegment := taskA.Segments[len(taskA.Segments)-1]
-				if lastSegment.Finish.IsZero() {
-					lastActivityA = lastSegment.Create // Use start time for open segments
-				} else {
-					lastActivityA = lastSegment.Finish // Use end time for closed segments
-				}
-			}
-
-			// Get last activity time for task B
-			var lastActivityB time.Time
-
-			if len(taskB.Segments) > 0 {
-				lastSegment := taskB.Segments[len(taskB.Segments)-1]
-				if lastSegment.Finish.IsZero() {
-					lastActivityB = lastSegment.Create // Use start time for open segments
-				} else {
-					lastActivityB = lastSegment.Finish // Use end time for closed segments
-				}
-			}
-
-			// Tasks with no segments go to the bottom
-
-			if lastActivityA.IsZero() && lastActivityB.IsZero() {
-				return false // Keep original order for tasks with no segments
-			}
-
-			if lastActivityA.IsZero() {
-				return false // Task A goes after task B
-			}
-
-			if lastActivityB.IsZero() {
-				return true // Task A goes before task B
-			}
-
-			// Sort by most recent activity first
-			return lastActivityA.After(lastActivityB)
-		})
+		// Get tasks sorted by last activity
+		sortedTasks := watch.GetTasksSortedByActivity()
 
 		// Update the row-to-task mapping
 		tableRowToTaskIndex = make([]int, len(watch.Tasks))
-		copy(tableRowToTaskIndex, taskIndices)
+		for i, t := range sortedTasks {
+			tableRowToTaskIndex[i] = watch.GetTaskIndex(t)
+		}
 
 		// Add task rows using sorted order
-		for i := range taskIndices {
-			task := watch.Tasks[taskIndices[i]]
+		for i, task := range sortedTasks {
 			row := i + 1 // +1 because row 0 is headers
 
 			// Status column
 			statusCell := tview.NewTableCell("").SetAlign(tview.AlignCenter)
-			if task.HasUnclosedSegment() {
+			if task.IsActive() {
 				statusCell.SetText("▶").SetTextColor(tcell.ColorRed)
 			} else {
 				statusCell.SetText("●").SetTextColor(tcell.ColorGray)
@@ -394,15 +227,12 @@ func main() {
 			// Last Activity column
 			lastActivityText := "-"
 			lastActivityColor := tcell.ColorGray
-			if len(task.Segments) > 0 {
-				lastSegment := task.Segments[len(task.Segments)-1]
-				if lastSegment.Finish.IsZero() {
-					// Open segment - show start date
-					lastActivityText = lastSegment.Create.Format("2006-01-02")
+			lastActivity := task.GetLastActivity()
+			if !lastActivity.IsZero() {
+				lastActivityText = lastActivity.Format("2006-01-02")
+				if task.IsActive() {
 					lastActivityColor = tcell.ColorGreen // Green for active
 				} else {
-					// Closed segment - show end date
-					lastActivityText = lastSegment.Finish.Format("2006-01-02")
 					lastActivityColor = tcell.ColorWhite
 				}
 			}
@@ -445,15 +275,14 @@ func main() {
 			var content strings.Builder
 
 			// Add last segment information if any segments exist
-			if len(task.Segments) > 0 {
-				lastSegment := task.Segments[len(task.Segments)-1]
-
+			lastSegment := task.GetLastSegment()
+			if lastSegment != nil {
 				if lastSegment.Finish.IsZero() {
 					// Open segment - show start date and current duration
 					content.WriteString(fmt.Sprintf("[yellow]Current Segment:[white] Started %s\n",
 						lastSegment.Create.Format("2006-01-02 15:04:05")))
 
-					currentDuration := time.Since(lastSegment.Create)
+					currentDuration := task.GetCurrentSegmentDuration()
 					content.WriteString(fmt.Sprintf("[yellow]Duration:[white] %s (ongoing)\n\n",
 						formatDuration(currentDuration)))
 				} else {
@@ -477,7 +306,7 @@ func main() {
 	}
 
 	// Update description when selection changes
-	table.SetSelectionChangedFunc(func(row, column int) {
+	table.SetSelectionChangedFunc(func(row, _ int) {
 		updateDescriptionView()
 	})
 
@@ -745,7 +574,7 @@ func main() {
 			if currentIndex >= 0 && currentIndex < len(watch.Tasks) {
 				task := watch.Tasks[currentIndex]
 				// Only update if there's an open segment
-				if len(task.Segments) > 0 && task.Segments[len(task.Segments)-1].Finish.IsZero() {
+				if task.IsActive() {
 					app.QueueUpdateDraw(func() {
 						updateDescriptionView()
 					})
