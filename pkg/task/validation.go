@@ -23,6 +23,7 @@ func ValidateTask(name, _ string, tags []string) error {
 
 	// Clean tags - remove empty strings
 	_ = make([]string, 0, len(tags))
+
 	for _, tag := range tags {
 		if trimmed := strings.TrimSpace(tag); trimmed != "" {
 			// Tag is valid but we don't need to store it here.

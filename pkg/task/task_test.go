@@ -1,10 +1,12 @@
-package task
+package task_test
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/huckleberry-1881/ohgmas-watch/pkg/task"
 )
 
 func TestAddTask(t *testing.T) {
@@ -52,7 +54,7 @@ func TestAddTask(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			watch := &Watch{Tasks: []*Task{}}
+			watch := &task.Watch{Tasks: []*task.Task{}}
 			initialTaskCount := len(watch.Tasks)
 
 			watch.AddTask(testCase.taskName, testCase.description, testCase.tags, "work")
@@ -117,11 +119,11 @@ func TestAddSegment(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			task := &Task{
+			task := &task.Task{
 				Name:        "Test Task",
 				Description: "Test Description",
 				Tags:        []string{"test"},
-				Segments:    []*Segment{},
+				Segments:    []*task.Segment{},
 			}
 
 			beforeTime := time.Now()
@@ -153,11 +155,11 @@ func TestAddSegment(t *testing.T) {
 func TestAddMultipleSegments(t *testing.T) {
 	t.Parallel()
 
-	task := &Task{
+	task := &task.Task{
 		Name:        "Test Task",
 		Description: "Test Description",
 		Tags:        []string{"test"},
-		Segments:    []*Segment{},
+		Segments:    []*task.Segment{},
 	}
 
 	segmentNotes := []string{"First segment", "Second segment", "Third segment"}
@@ -191,11 +193,11 @@ func TestCloseSegment(t *testing.T) {
 	t.Run("close single open segment", func(t *testing.T) {
 		t.Parallel()
 
-		task := &Task{
+		task := &task.Task{
 			Name:        "Test Task",
 			Description: "Test Description",
 			Tags:        []string{"test"},
-			Segments: []*Segment{
+			Segments: []*task.Segment{
 				{
 					Create: time.Now().Add(-1 * time.Hour),
 					Finish: time.Time{}, // Open segment
@@ -223,11 +225,11 @@ func TestCloseSegment(t *testing.T) {
 	t.Run("close multiple open segments", func(t *testing.T) {
 		t.Parallel()
 
-		task := &Task{
+		task := &task.Task{
 			Name:        "Test Task",
 			Description: "Test Description",
 			Tags:        []string{"test"},
-			Segments: []*Segment{
+			Segments: []*task.Segment{
 				{
 					Create: time.Now().Add(-2 * time.Hour),
 					Finish: time.Time{}, // Open segment
@@ -254,11 +256,11 @@ func TestCloseSegment(t *testing.T) {
 		t.Parallel()
 
 		baseTime := time.Now().Add(-3 * time.Hour)
-		task := &Task{
+		task := &task.Task{
 			Name:        "Test Task",
 			Description: "Test Description",
 			Tags:        []string{"test"},
-			Segments: []*Segment{
+			Segments: []*task.Segment{
 				{
 					Create: baseTime,
 					Finish: baseTime.Add(30 * time.Minute), // Closed segment
@@ -290,11 +292,11 @@ func TestCloseSegment(t *testing.T) {
 		t.Parallel()
 
 		baseTime := time.Now().Add(-2 * time.Hour)
-		task := &Task{
+		task := &task.Task{
 			Name:        "Test Task",
 			Description: "Test Description",
 			Tags:        []string{"test"},
-			Segments: []*Segment{
+			Segments: []*task.Segment{
 				{
 					Create: baseTime,
 					Finish: baseTime.Add(30 * time.Minute),
@@ -317,17 +319,17 @@ func TestHasUnclosedSegment(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		segments []*Segment
+		segments []*task.Segment
 		expected bool
 	}{
 		{
 			name:     "no segments",
-			segments: []*Segment{},
+			segments: []*task.Segment{},
 			expected: false,
 		},
 		{
 			name: "single open segment",
-			segments: []*Segment{
+			segments: []*task.Segment{
 				{
 					Create: time.Now().Add(-1 * time.Hour),
 					Finish: time.Time{},
@@ -338,7 +340,7 @@ func TestHasUnclosedSegment(t *testing.T) {
 		},
 		{
 			name: "single closed segment",
-			segments: []*Segment{
+			segments: []*task.Segment{
 				{
 					Create: time.Now().Add(-1 * time.Hour),
 					Finish: time.Now().Add(-30 * time.Minute),
@@ -349,7 +351,7 @@ func TestHasUnclosedSegment(t *testing.T) {
 		},
 		{
 			name: "mixed segments with open",
-			segments: []*Segment{
+			segments: []*task.Segment{
 				{
 					Create: time.Now().Add(-2 * time.Hour),
 					Finish: time.Now().Add(-90 * time.Minute),
@@ -365,7 +367,7 @@ func TestHasUnclosedSegment(t *testing.T) {
 		},
 		{
 			name: "all closed segments",
-			segments: []*Segment{
+			segments: []*task.Segment{
 				{
 					Create: time.Now().Add(-2 * time.Hour),
 					Finish: time.Now().Add(-90 * time.Minute),
@@ -385,7 +387,7 @@ func TestHasUnclosedSegment(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			task := &Task{
+			task := &task.Task{
 				Name:        "Test Task",
 				Description: "Test Description",
 				Tags:        []string{"test"},
@@ -405,17 +407,17 @@ func TestGetClosedSegmentsDuration(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		segments []*Segment
+		segments []*task.Segment
 		expected time.Duration
 	}{
 		{
 			name:     "no segments",
-			segments: []*Segment{},
+			segments: []*task.Segment{},
 			expected: 0,
 		},
 		{
 			name: "single closed segment",
-			segments: []*Segment{
+			segments: []*task.Segment{
 				{
 					Create: time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC),
 					Finish: time.Date(2023, 1, 1, 11, 0, 0, 0, time.UTC),
@@ -426,7 +428,7 @@ func TestGetClosedSegmentsDuration(t *testing.T) {
 		},
 		{
 			name: "single open segment",
-			segments: []*Segment{
+			segments: []*task.Segment{
 				{
 					Create: time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC),
 					Finish: time.Time{},
@@ -437,7 +439,7 @@ func TestGetClosedSegmentsDuration(t *testing.T) {
 		},
 		{
 			name: "multiple closed segments",
-			segments: []*Segment{
+			segments: []*task.Segment{
 				{
 					Create: time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC),
 					Finish: time.Date(2023, 1, 1, 10, 30, 0, 0, time.UTC),
@@ -453,7 +455,7 @@ func TestGetClosedSegmentsDuration(t *testing.T) {
 		},
 		{
 			name: "mixed open and closed segments",
-			segments: []*Segment{
+			segments: []*task.Segment{
 				{
 					Create: time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC),
 					Finish: time.Date(2023, 1, 1, 10, 45, 0, 0, time.UTC),
@@ -478,7 +480,7 @@ func TestGetClosedSegmentsDuration(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			task := &Task{
+			task := &task.Task{
 				Name:        "Test Task",
 				Description: "Test Description",
 				Tags:        []string{"test"},
@@ -497,14 +499,14 @@ func TestGetTasksFilePath(t *testing.T) {
 	t.Parallel()
 
 	// Test the function
-	path := GetTasksFilePath()
+	path := task.GetTasksFilePath()
 
 	if path == "" {
 		t.Error("Expected non-empty path")
 	}
 
 	// Should end with the expected filename
-	expectedFilename := defaultTasksFileName
+	expectedFilename := task.DefaultTasksFileName
 	if filepath.Base(path) != expectedFilename {
 		// If we can't get user home dir, it should return the default filename
 		if path != expectedFilename {
@@ -533,7 +535,7 @@ func TestGetTasksFilePathWithHomeError(t *testing.T) {
 	// The function should return ".ohgmas-tasks.yaml" if os.UserHomeDir() fails
 
 	// We'll test this indirectly by ensuring the function always returns something reasonable
-	path := GetTasksFilePath()
+	path := task.GetTasksFilePath()
 	if path == "" {
 		t.Error("GetTasksFilePath should never return empty string")
 	}

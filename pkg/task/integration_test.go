@@ -1,8 +1,10 @@
-package task
+package task_test
 
 import (
 	"testing"
 	"time"
+
+	"github.com/huckleberry-1881/ohgmas-watch/pkg/task"
 )
 
 // TestTaskWorkflow tests a complete workflow of task operations.
@@ -10,7 +12,7 @@ func TestTaskWorkflow(t *testing.T) {
 	t.Parallel()
 
 	// Create a new watch
-	watch := &Watch{Tasks: []*Task{}}
+	watch := &task.Watch{Tasks: []*task.Task{}}
 
 	// Add a task
 	watch.AddTask("Feature Development", "Implement new user authentication", []string{"development", "security"}, "work")
@@ -95,7 +97,7 @@ func TestTaskWorkflow(t *testing.T) {
 func TestMultipleTasksWorkflow(t *testing.T) {
 	t.Parallel()
 
-	watch := &Watch{Tasks: []*Task{}}
+	watch := &task.Watch{Tasks: []*task.Task{}}
 
 	// Add multiple tasks
 	taskData := []struct {
@@ -163,32 +165,32 @@ func TestMultipleTasksWorkflow(t *testing.T) {
 func TestSegmentTimingAccuracy(t *testing.T) {
 	t.Parallel()
 
-	task := &Task{
+	testTask := &task.Task{
 		Name:        "Timing Test",
 		Description: "Test task for timing accuracy",
 		Tags:        []string{},
-		Segments:    []*Segment{},
+		Segments:    []*task.Segment{},
 	}
 
 	// Record start time
 	startTime := time.Now()
 
 	// Add a segment
-	task.AddSegment("Test segment")
+	testTask.AddSegment("Test segment")
 
 	// Wait a measurable amount of time
 	time.Sleep(10 * time.Millisecond)
 
 	// Close the segment
-	task.CloseSegment()
+	testTask.CloseSegment()
 
 	endTime := time.Now()
 
-	if len(task.Segments) != 1 {
-		t.Fatalf("Expected 1 segment, got %d", len(task.Segments))
+	if len(testTask.Segments) != 1 {
+		t.Fatalf("Expected 1 segment, got %d", len(testTask.Segments))
 	}
 
-	segment := task.Segments[0]
+	segment := testTask.Segments[0]
 
 	// Verify timing is reasonable
 	if segment.Create.Before(startTime) {
@@ -210,7 +212,7 @@ func TestSegmentTimingAccuracy(t *testing.T) {
 	}
 
 	// Verify task reports correct duration
-	taskDuration := task.GetClosedSegmentsDuration()
+	taskDuration := testTask.GetClosedSegmentsDuration()
 	if taskDuration != duration {
 		t.Errorf("Task duration (%v) doesn't match segment duration (%v)", taskDuration, duration)
 	}
@@ -220,11 +222,11 @@ func TestSegmentTimingAccuracy(t *testing.T) {
 func TestConcurrentSegmentOperations(t *testing.T) {
 	t.Parallel()
 
-	task := &Task{
+	testTask := &task.Task{
 		Name:        "Concurrent Test",
 		Description: "Test task for concurrent operations",
 		Tags:        []string{},
-		Segments:    []*Segment{},
+		Segments:    []*task.Segment{},
 	}
 
 	// Add multiple segments concurrently
@@ -234,7 +236,7 @@ func TestConcurrentSegmentOperations(t *testing.T) {
 
 	for segmentIndex := range numSegments {
 		go func(_ int) {
-			task.AddSegment("Concurrent segment")
+			testTask.AddSegment("Concurrent segment")
 
 			done <- true
 		}(segmentIndex)
@@ -245,25 +247,25 @@ func TestConcurrentSegmentOperations(t *testing.T) {
 		<-done
 	}
 
-	if len(task.Segments) != numSegments {
-		t.Errorf("Expected %d segments, got %d", numSegments, len(task.Segments))
+	if len(testTask.Segments) != numSegments {
+		t.Errorf("Expected %d segments, got %d", numSegments, len(testTask.Segments))
 	}
 
 	// All segments should be open
-	if !task.HasUnclosedSegment() {
+	if !testTask.HasUnclosedSegment() {
 		t.Error("Task should have unclosed segments")
 	}
 
 	// Close all segments
-	task.CloseSegment()
+	testTask.CloseSegment()
 
 	// No segments should be open
-	if task.HasUnclosedSegment() {
+	if testTask.HasUnclosedSegment() {
 		t.Error("Task should not have unclosed segments after closing")
 	}
 
 	// All segments should have valid timing
-	for segmentIndex, segment := range task.Segments {
+	for segmentIndex, segment := range testTask.Segments {
 		if segment.Finish.IsZero() {
 			t.Errorf("Segment %d should be closed", segmentIndex)
 		}
@@ -281,7 +283,7 @@ func TestEdgeCaseEmptyOperations(t *testing.T) {
 	t.Run("operations on task with nil segments", func(t *testing.T) {
 		t.Parallel()
 
-		task := &Task{
+		testTask := &task.Task{
 			Name:        "Test Task",
 			Description: "Test task with nil segments",
 			Tags:        []string{},
@@ -289,29 +291,29 @@ func TestEdgeCaseEmptyOperations(t *testing.T) {
 		}
 
 		// These operations should not panic
-		if task.HasUnclosedSegment() {
+		if testTask.HasUnclosedSegment() {
 			t.Error("Task with nil segments should not have unclosed segments")
 		}
 
-		if duration := task.GetClosedSegmentsDuration(); duration != 0 {
+		if duration := testTask.GetClosedSegmentsDuration(); duration != 0 {
 			t.Errorf("Task with nil segments should have zero duration, got %v", duration)
 		}
 
 		// CloseSegment should not panic
-		task.CloseSegment()
+		testTask.CloseSegment()
 
 		// AddSegment should work and initialize the slice
-		task.AddSegment("First segment")
+		testTask.AddSegment("First segment")
 
-		if len(task.Segments) != 1 {
-			t.Errorf("Expected 1 segment after AddSegment, got %d", len(task.Segments))
+		if len(testTask.Segments) != 1 {
+			t.Errorf("Expected 1 segment after AddSegment, got %d", len(testTask.Segments))
 		}
 	})
 
 	t.Run("operations on empty watch", func(t *testing.T) {
 		t.Parallel()
 
-		watch := &Watch{Tasks: []*Task{}}
+		watch := &task.Watch{Tasks: []*task.Task{}}
 
 		// Should be able to add tasks
 		watch.AddTask("Test", "Description", []string{"tag"}, "work")
@@ -324,7 +326,7 @@ func TestEdgeCaseEmptyOperations(t *testing.T) {
 	t.Run("operations on watch with nil tasks", func(t *testing.T) {
 		t.Parallel()
 
-		watch := &Watch{Tasks: nil}
+		watch := &task.Watch{Tasks: nil}
 
 		// AddTask should work and initialize the slice
 		watch.AddTask("Test", "Description", []string{"tag"}, "work")
@@ -343,7 +345,7 @@ func TestLargeNumberOfOperations(t *testing.T) {
 
 	t.Parallel()
 
-	watch := &Watch{Tasks: []*Task{}}
+	watch := &task.Watch{Tasks: []*task.Task{}}
 
 	const numTasks = 100
 
