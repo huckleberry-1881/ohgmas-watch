@@ -90,16 +90,16 @@ func (t *Task) GetClosedSegmentsDuration() time.Duration {
 	return totalDuration
 }
 
-const defaultTasksFileName = ".ohgmas-tasks.yaml"
+const DefaultTasksFileName = ".ohgmas-tasks.yaml"
 
 // GetTasksFilePath gets the path to the tasks file in user's home directory.
 func GetTasksFilePath() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return defaultTasksFileName
+		return DefaultTasksFileName
 	}
 
-	return filepath.Join(homeDir, defaultTasksFileName)
+	return filepath.Join(homeDir, DefaultTasksFileName)
 }
 
 // SaveTasksToFile saves tasks to YAML file at specified path.

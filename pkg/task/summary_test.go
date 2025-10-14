@@ -1,8 +1,10 @@
-package task
+package task_test
 
 import (
 	"testing"
 	"time"
+
+	"github.com/huckleberry-1881/ohgmas-watch/pkg/task"
 )
 
 func TestGetSummaryByTagset(t *testing.T) {
@@ -12,7 +14,7 @@ func TestGetSummaryByTagset(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		tasks         []*Task
+		tasks         []*task.Task
 		start         *time.Time
 		finish        *time.Time
 		expectedCount int
@@ -20,32 +22,32 @@ func TestGetSummaryByTagset(t *testing.T) {
 	}{
 		{
 			name:          "no tasks",
-			tasks:         []*Task{},
+			tasks:         []*task.Task{},
 			start:         nil,
 			finish:        nil,
 			expectedCount: 0,
 		},
 		{
 			name: "tasks with different tags",
-			tasks: []*Task{
+			tasks: []*task.Task{
 				{
 					Name: "Task1",
 					Tags: []string{"work", "urgent"},
-					Segments: []*Segment{
+					Segments: []*task.Segment{
 						{Create: baseTime, Finish: baseTime.Add(2 * time.Hour)},
 					},
 				},
 				{
 					Name: "Task2",
 					Tags: []string{"personal"},
-					Segments: []*Segment{
+					Segments: []*task.Segment{
 						{Create: baseTime, Finish: baseTime.Add(time.Hour)},
 					},
 				},
 				{
 					Name: "Task3",
 					Tags: []string{},
-					Segments: []*Segment{
+					Segments: []*task.Segment{
 						{Create: baseTime, Finish: baseTime.Add(30 * time.Minute)},
 					},
 				},
@@ -57,18 +59,18 @@ func TestGetSummaryByTagset(t *testing.T) {
 		},
 		{
 			name: "filter by time range",
-			tasks: []*Task{
+			tasks: []*task.Task{
 				{
 					Name: "Task1",
 					Tags: []string{"work"},
-					Segments: []*Segment{
+					Segments: []*task.Segment{
 						{Create: baseTime, Finish: baseTime.Add(time.Hour)},
 					},
 				},
 				{
 					Name: "Task2",
 					Tags: []string{"work"},
-					Segments: []*Segment{
+					Segments: []*task.Segment{
 						{Create: baseTime.Add(2 * time.Hour), Finish: baseTime.Add(3 * time.Hour)},
 					},
 				},
@@ -88,7 +90,7 @@ func TestGetSummaryByTagset(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			watch := &Watch{
+			watch := &task.Watch{
 				Tasks: tc.tasks,
 			}
 
@@ -114,38 +116,38 @@ func TestGetTasksSortedByActivity(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		tasks         []*Task
+		tasks         []*task.Task
 		expectedOrder []string // Expected task names in order
 	}{
 		{
 			name:          "no tasks",
-			tasks:         []*Task{},
+			tasks:         []*task.Task{},
 			expectedOrder: []string{},
 		},
 		{
 			name: "tasks with different activity times",
-			tasks: []*Task{
+			tasks: []*task.Task{
 				{
 					Name: "Old Task",
-					Segments: []*Segment{
+					Segments: []*task.Segment{
 						{Create: baseTime, Finish: baseTime.Add(time.Hour)},
 					},
 				},
 				{
 					Name: "Recent Task",
-					Segments: []*Segment{
+					Segments: []*task.Segment{
 						{Create: baseTime.Add(2 * time.Hour), Finish: baseTime.Add(3 * time.Hour)},
 					},
 				},
 				{
 					Name: "Active Task",
-					Segments: []*Segment{
+					Segments: []*task.Segment{
 						{Create: baseTime.Add(4 * time.Hour), Finish: time.Time{}},
 					},
 				},
 				{
 					Name:     "No Segments",
-					Segments: []*Segment{},
+					Segments: []*task.Segment{},
 				},
 			},
 			expectedOrder: []string{"Active Task", "Recent Task", "Old Task", "No Segments"},
@@ -156,7 +158,7 @@ func TestGetTasksSortedByActivity(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			watch := &Watch{
+			watch := &task.Watch{
 				Tasks: tc.tasks,
 			}
 
@@ -178,18 +180,18 @@ func TestGetTasksSortedByActivity(t *testing.T) {
 func TestGetTaskIndex(t *testing.T) {
 	t.Parallel()
 
-	task1 := &Task{Name: "Task1"}
-	task2 := &Task{Name: "Task2"}
-	task3 := &Task{Name: "Task3"}
-	taskNotInList := &Task{Name: "Not In List"}
+	task1 := &task.Task{Name: "Task1"}
+	task2 := &task.Task{Name: "Task2"}
+	task3 := &task.Task{Name: "Task3"}
+	taskNotInList := &task.Task{Name: "Not In List"}
 
-	watch := &Watch{
-		Tasks: []*Task{task1, task2, task3},
+	watch := &task.Watch{
+		Tasks: []*task.Task{task1, task2, task3},
 	}
 
 	tests := []struct {
 		name     string
-		task     *Task
+		task     *task.Task
 		expected int
 	}{
 		{

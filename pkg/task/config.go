@@ -24,10 +24,10 @@ func DefaultConfig() *Config {
 func GetDefaultTasksFilePath() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return defaultTasksFileName
+		return DefaultTasksFileName
 	}
 
-	return filepath.Join(homeDir, defaultTasksFileName)
+	return filepath.Join(homeDir, DefaultTasksFileName)
 }
 
 // NewWatchWithConfig creates a new Watch with configuration.

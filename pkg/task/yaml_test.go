@@ -1,4 +1,4 @@
-package task
+package task_test
 
 import (
 	"fmt"
@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/huckleberry-1881/ohgmas-watch/pkg/task"
 )
 
 // Test helper to create a temporary test file.
@@ -48,7 +50,7 @@ func TestSaveTasksEmpty(t *testing.T) {
 
 	tempFile := createTempTasksFile(t, "")
 
-	watch := &Watch{Tasks: []*Task{}}
+	watch := &task.Watch{Tasks: []*task.Task{}}
 
 	err := watch.SaveTasksToFile(tempFile)
 	if err != nil {
@@ -56,7 +58,7 @@ func TestSaveTasksEmpty(t *testing.T) {
 	}
 
 	// Verify file was created and contains empty array
-	loadedWatch := &Watch{Tasks: []*Task{}}
+	loadedWatch := &task.Watch{Tasks: []*task.Task{}}
 
 	err = loadedWatch.LoadTasksFromFile(tempFile)
 	if err != nil {
@@ -73,12 +75,12 @@ func TestSaveTasksSingle(t *testing.T) {
 	tempFile := createTempTasksFile(t, "")
 
 	now := time.Now()
-	watch := &Watch{Tasks: []*Task{
+	watch := &task.Watch{Tasks: []*task.Task{
 		{
 			Name:        "Test Task",
 			Description: "A test task description",
 			Tags:        []string{"work", "urgent"},
-			Segments: []*Segment{
+			Segments: []*task.Segment{
 				{
 					Create: now,
 					Finish: time.Time{}, // Unclosed segment
@@ -94,7 +96,7 @@ func TestSaveTasksSingle(t *testing.T) {
 	}
 
 	// Verify the saved content
-	loadedWatch := &Watch{Tasks: []*Task{}}
+	loadedWatch := &task.Watch{Tasks: []*task.Task{}}
 
 	err = loadedWatch.LoadTasksFromFile(tempFile)
 	if err != nil {
@@ -144,12 +146,12 @@ func TestSaveTasksMultiple(t *testing.T) {
 	now1 := time.Now()
 	now2 := now1.Add(time.Hour)
 
-	tasks := []*Task{
-		&Task{
+	tasks := []*task.Task{
+		&task.Task{
 			Name:        "Task 1",
 			Description: "First task",
 			Tags:        []string{"work"},
-			Segments: []*Segment{
+			Segments: []*task.Segment{
 				{
 					Create: now1,
 					Finish: now2,
@@ -162,17 +164,17 @@ func TestSaveTasksMultiple(t *testing.T) {
 				},
 			},
 		},
-		&Task{
+		&task.Task{
 			Name:        "Task 2",
 			Description: "Second task",
 			Tags:        []string{},
-			Segments:    []*Segment{},
+			Segments:    []*task.Segment{},
 		},
-		&Task{
+		&task.Task{
 			Name:        "Task 3",
 			Description: "",
 			Tags:        []string{"personal", "hobby", "fun"},
-			Segments: []*Segment{
+			Segments: []*task.Segment{
 				{
 					Create: now1,
 					Finish: now1.Add(30 * time.Minute),
@@ -182,13 +184,13 @@ func TestSaveTasksMultiple(t *testing.T) {
 		},
 	}
 
-	err := (&Watch{Tasks: tasks}).SaveTasksToFile(tempFile)
+	err := (&task.Watch{Tasks: tasks}).SaveTasksToFile(tempFile)
 	if err != nil {
 		t.Errorf("saveTasksToFile failed: %v", err)
 	}
 
 	// Load and verify
-	loadedWatch := &Watch{Tasks: []*Task{}}
+	loadedWatch := &task.Watch{Tasks: []*task.Task{}}
 
 	err = loadedWatch.LoadTasksFromFile(tempFile)
 	if err != nil {
@@ -225,7 +227,7 @@ func TestLoadTasksNonExistent(t *testing.T) {
 	tempDir := t.TempDir()
 	nonExistentFile := filepath.Join(tempDir, "non-existent.yaml")
 
-	watch := &Watch{Tasks: []*Task{}}
+	watch := &task.Watch{Tasks: []*task.Task{}}
 
 	err := watch.LoadTasksFromFile(nonExistentFile)
 	if err != nil {
@@ -243,7 +245,7 @@ func TestLoadTasksEmpty(t *testing.T) {
 
 	tempFile := createTempTasksFile(t, "[]")
 
-	watch := &Watch{Tasks: []*Task{}}
+	watch := &task.Watch{Tasks: []*task.Task{}}
 
 	err := watch.LoadTasksFromFile(tempFile)
 	if err != nil {
@@ -278,7 +280,7 @@ func TestLoadTasksValid(t *testing.T) {
 
 	tempFile := createTempTasksFile(t, yamlContent)
 
-	watch := &Watch{Tasks: []*Task{}}
+	watch := &task.Watch{Tasks: []*task.Task{}}
 
 	err := watch.LoadTasksFromFile(tempFile)
 	if err != nil {
@@ -335,7 +337,7 @@ func TestLoadTasksInvalidYAML(t *testing.T) {
 
 	tempFile := createTempTasksFile(t, invalidYAML)
 
-	watch := &Watch{Tasks: []*Task{}}
+	watch := &task.Watch{Tasks: []*task.Task{}}
 
 	err := watch.LoadTasksFromFile(tempFile)
 	if err == nil {
@@ -356,12 +358,12 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 
 	now := time.Now().Truncate(time.Second) // Truncate to avoid precision issues
 
-	originalTasks := []*Task{
-		&Task{
+	originalTasks := []*task.Task{
+		&task.Task{
 			Name:        "Round Trip Task",
 			Description: "Testing save/load cycle",
 			Tags:        []string{"test", "roundtrip"},
-			Segments: []*Segment{
+			Segments: []*task.Segment{
 				{
 					Create: now,
 					Finish: now.Add(time.Hour),
@@ -377,13 +379,13 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 	}
 
 	// Save
-	err := (&Watch{Tasks: originalTasks}).SaveTasksToFile(tempFile)
+	err := (&task.Watch{Tasks: originalTasks}).SaveTasksToFile(tempFile)
 	if err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
 
 	// Load
-	loadedWatch := &Watch{Tasks: []*Task{}}
+	loadedWatch := &task.Watch{Tasks: []*task.Task{}}
 
 	err = loadedWatch.LoadTasksFromFile(tempFile)
 	if err != nil {
@@ -448,12 +450,12 @@ func TestSaveTasksSpecialCharacters(t *testing.T) {
 
 	tempFile := createTempTasksFile(t, "")
 
-	tasks := []*Task{
-		&Task{
+	tasks := []*task.Task{
+		&task.Task{
 			Name:        "Task with special chars: 你好, émojis 🎉, & symbols!",
 			Description: "Multi-line\ndescription with\ttabs and \"quotes\"",
 			Tags:        []string{"unicode: 测试", "emoji: 🚀"},
-			Segments: []*Segment{
+			Segments: []*task.Segment{
 				{
 					Create: time.Now(),
 					Finish: time.Time{},
@@ -463,12 +465,12 @@ func TestSaveTasksSpecialCharacters(t *testing.T) {
 		},
 	}
 
-	err := (&Watch{Tasks: tasks}).SaveTasksToFile(tempFile)
+	err := (&task.Watch{Tasks: tasks}).SaveTasksToFile(tempFile)
 	if err != nil {
 		t.Errorf("Failed to save tasks with special characters: %v", err)
 	}
 
-	loadedWatch := &Watch{Tasks: []*Task{}}
+	loadedWatch := &task.Watch{Tasks: []*task.Task{}}
 
 	err = loadedWatch.LoadTasksFromFile(tempFile)
 	if err != nil {
@@ -503,13 +505,13 @@ func TestSaveLoadLargeTasks(t *testing.T) {
 	tempFile := createTempTasksFile(t, "")
 
 	// Create 1000 tasks
-	tasks := make([]*Task, 1000)
+	tasks := make([]*task.Task, 1000)
 	for taskIndex := range 1000 {
-		tasks[taskIndex] = &Task{
+		tasks[taskIndex] = &task.Task{
 			Name:        fmt.Sprintf("Task %d", taskIndex),
 			Description: fmt.Sprintf("Description for task %d", taskIndex),
 			Tags:        []string{"tag1", "tag2"},
-			Segments: []*Segment{
+			Segments: []*task.Segment{
 				{
 					Create: time.Now().Add(time.Duration(taskIndex) * time.Minute),
 					Finish: time.Now().Add(time.Duration(taskIndex+1) * time.Minute),
@@ -519,12 +521,12 @@ func TestSaveLoadLargeTasks(t *testing.T) {
 		}
 	}
 
-	err := (&Watch{Tasks: tasks}).SaveTasksToFile(tempFile)
+	err := (&task.Watch{Tasks: tasks}).SaveTasksToFile(tempFile)
 	if err != nil {
 		t.Errorf("Failed to save large task set: %v", err)
 	}
 
-	loadedWatch := &Watch{Tasks: []*Task{}}
+	loadedWatch := &task.Watch{Tasks: []*task.Task{}}
 
 	err = loadedWatch.LoadTasksFromFile(tempFile)
 	if err != nil {
@@ -559,15 +561,15 @@ func BenchmarkSaveTasks(b *testing.B) {
 	tempFile := createTempTasksFileB(b, "")
 
 	// Create a realistic task set
-	tasks := make([]*Task, 100)
+	tasks := make([]*task.Task, 100)
 	now := time.Now()
 
 	for taskIndex := range 100 {
-		tasks[taskIndex] = &Task{
+		tasks[taskIndex] = &task.Task{
 			Name:        "Benchmark Task",
 			Description: "A task for benchmarking",
 			Tags:        []string{"benchmark", "test"},
-			Segments: []*Segment{
+			Segments: []*task.Segment{
 				{
 					Create: now.Add(time.Duration(taskIndex) * time.Minute),
 					Finish: now.Add(time.Duration(taskIndex+1) * time.Minute),
@@ -580,7 +582,7 @@ func BenchmarkSaveTasks(b *testing.B) {
 	b.ResetTimer()
 
 	for range b.N {
-		_ = (&Watch{Tasks: tasks}).SaveTasksToFile(tempFile)
+		_ = (&task.Watch{Tasks: tasks}).SaveTasksToFile(tempFile)
 	}
 }
 
@@ -590,15 +592,15 @@ func BenchmarkLoadTasks(b *testing.B) {
 	tempFile := createTempTasksFileB(b, "")
 
 	// Create and save tasks
-	tasks := make([]*Task, 100)
+	tasks := make([]*task.Task, 100)
 	now := time.Now()
 
 	for taskIndex := range 100 {
-		tasks[taskIndex] = &Task{
+		tasks[taskIndex] = &task.Task{
 			Name:        "Benchmark Task",
 			Description: "A task for benchmarking",
 			Tags:        []string{"benchmark", "test"},
-			Segments: []*Segment{
+			Segments: []*task.Segment{
 				{
 					Create: now.Add(time.Duration(taskIndex) * time.Minute),
 					Finish: now.Add(time.Duration(taskIndex+1) * time.Minute),
@@ -608,12 +610,12 @@ func BenchmarkLoadTasks(b *testing.B) {
 		}
 	}
 
-	_ = (&Watch{Tasks: tasks}).SaveTasksToFile(tempFile) // Save once
+	_ = (&task.Watch{Tasks: tasks}).SaveTasksToFile(tempFile) // Save once
 
 	b.ResetTimer()
 
 	for range b.N {
-		w := &Watch{Tasks: []*Task{}}
+		w := &task.Watch{Tasks: []*task.Task{}}
 		_ = w.LoadTasksFromFile(tempFile)
 	}
 }

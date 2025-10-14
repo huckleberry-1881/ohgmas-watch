@@ -462,6 +462,7 @@ func main() {
 
 		// Pre-populate with current values
 		var name, description, tags string
+
 		name = selectedTask.Name
 		description = selectedTask.Description
 		tags = strings.Join(selectedTask.Tags, ", ")
