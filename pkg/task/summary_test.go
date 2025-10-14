@@ -73,8 +73,12 @@ func TestGetSummaryByTagset(t *testing.T) {
 					},
 				},
 			},
-			start:         func() *time.Time { t := baseTime.Add(90 * time.Minute); return &t }(),
-			finish:        nil,
+			start: func() *time.Time {
+				t := baseTime.Add(90 * time.Minute)
+
+				return &t
+			}(),
+			finish: nil,
 			expectedCount: 1,
 			expectedFirst: "work",
 		},

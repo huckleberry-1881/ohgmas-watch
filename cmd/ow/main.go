@@ -35,12 +35,7 @@ func generateSummary(includeTasks bool, start, finish *time.Time) error {
 		duration := summary.Duration
 
 		// Format duration for display
-		var durationStr string
-		if duration == 0 {
-			durationStr = "0m"
-		} else {
-			durationStr = formatDuration(duration)
-		}
+		durationStr := formatDuration(duration)
 
 		// Use singular/plural form correctly
 		taskWord := "tasks"
@@ -54,13 +49,7 @@ func generateSummary(includeTasks bool, start, finish *time.Time) error {
 		if includeTasks {
 			for _, taskItem := range summary.Tasks {
 				taskDuration := taskItem.GetFilteredClosedSegmentsDuration(start, finish)
-
-				var taskDurationStr string
-				if taskDuration == 0 {
-					taskDurationStr = "0m"
-				} else {
-					taskDurationStr = formatDuration(taskDuration)
-				}
+				taskDurationStr := formatDuration(taskDuration)
 
 				_, _ = fmt.Fprintf(os.Stdout, "  Task: %s %s\n", taskItem.Name, taskDurationStr)
 			}
@@ -176,6 +165,7 @@ func main() {
 
 	// Current category filter (empty means show all)
 	var currentCategoryFilter string
+
 	categoryFilters := []string{"", "completed", "work", "backlog"} // "" = all
 	filterIndex := 0
 
@@ -189,6 +179,18 @@ func main() {
 		return -1 // Invalid row
 	}
 
+	// Helper function to get the currently selected task
+	getSelectedTask := func() (*task.Task, bool) {
+		row, _ := table.GetSelection()
+		currentIndex := getTaskIndex(row)
+
+		if currentIndex < 0 || currentIndex >= len(watch.Tasks) {
+			return nil, false
+		}
+
+		return watch.Tasks[currentIndex], true
+	}
+
 	// Helper function to save tasks and refresh the table
 	saveAndRefresh := func() {
 		err = watch.SaveTasks()
@@ -198,6 +200,7 @@ func main() {
 
 		// Clear existing rows (keep header row)
 		rowCount := table.GetRowCount()
+
 		for r := rowCount - 1; r > 0; r-- {
 			table.RemoveRow(r)
 		}
@@ -210,6 +213,7 @@ func main() {
 		if currentCategoryFilter != "" {
 			filterTitle = fmt.Sprintf("Tasks (%s)", currentCategoryFilter)
 		}
+
 		table.SetTitle(filterTitle)
 
 		// Update the row-to-task mapping
@@ -240,7 +244,9 @@ func main() {
 			if category == "" {
 				category = "work" // Default for existing tasks
 			}
+
 			var categoryColor tcell.Color
+
 			switch category {
 			case "completed":
 				categoryColor = tcell.ColorGreen
@@ -251,6 +257,7 @@ func main() {
 			default:
 				categoryColor = tcell.ColorWhite
 			}
+
 			categoryCell := tview.NewTableCell(category).
 				SetTextColor(categoryColor).
 				SetAlign(tview.AlignCenter)
@@ -260,6 +267,7 @@ func main() {
 			if len(task.Tags) > 0 {
 				tagsText = fmt.Sprintf("(%s)", strings.Join(task.Tags, ", "))
 			}
+
 			tagsCell := tview.NewTableCell(tagsText).
 				SetTextColor(tcell.ColorBlue).
 				SetAlign(tview.AlignLeft)
@@ -268,14 +276,17 @@ func main() {
 			lastActivityText := "-"
 			lastActivityColor := tcell.ColorGray
 			lastActivity := task.GetLastActivity()
+
 			if !lastActivity.IsZero() {
 				lastActivityText = lastActivity.Format("2006-01-02")
+
 				if task.IsActive() {
 					lastActivityColor = tcell.ColorGreen // Green for active
 				} else {
 					lastActivityColor = tcell.ColorWhite
 				}
 			}
+
 			lastActivityCell := tview.NewTableCell(lastActivityText).
 				SetTextColor(lastActivityColor).
 				SetAlign(tview.AlignCenter)
@@ -283,20 +294,14 @@ func main() {
 			// This Week column
 			weekStart := getLastMonday()
 			thisWeekDuration := task.GetThisWeekDuration(weekStart)
-			thisWeekText := "0m"
-			if thisWeekDuration > 0 {
-				thisWeekText = formatDuration(thisWeekDuration)
-			}
+			thisWeekText := formatDuration(thisWeekDuration)
 			thisWeekCell := tview.NewTableCell(thisWeekText).
 				SetTextColor(tcell.ColorLightBlue).
 				SetAlign(tview.AlignRight)
 
 			// Duration column
 			duration := task.GetClosedSegmentsDuration()
-			durationText := "0m"
-			if duration > 0 {
-				durationText = formatDuration(duration)
-			}
+			durationText := formatDuration(duration)
 			durationCell := tview.NewTableCell(durationText).
 				SetTextColor(tcell.ColorYellow).
 				SetAlign(tview.AlignRight)
@@ -321,6 +326,7 @@ func main() {
 	updateDescriptionView := func() {
 		row, _ := table.GetSelection()
 		currentIndex := getTaskIndex(row)
+
 		if currentIndex >= 0 && currentIndex < len(watch.Tasks) {
 			task := watch.Tasks[currentIndex]
 
@@ -426,9 +432,8 @@ func main() {
 
 	// Function to show new segment form with note
 	showNewSegmentWithNoteForm := func() {
-		row, _ := table.GetSelection()
-		currentIndex := getTaskIndex(row)
-		if currentIndex < 0 || currentIndex >= len(watch.Tasks) {
+		selectedTask, ok := getSelectedTask()
+		if !ok {
 			return // No task selected
 		}
 
@@ -447,15 +452,13 @@ func main() {
 
 		form.AddButton("Create", func() {
 			// Check if there's already an open segment
-			for _, segment := range watch.Tasks[currentIndex].Segments {
-				if segment.Finish.IsZero() {
-					app.SetRoot(mainLayout, true) // Already has an open segment, just return to main
+			if selectedTask.HasUnclosedSegment() {
+				app.SetRoot(mainLayout, true) // Already has an open segment, just return to main
 
-					return
-				}
+				return
 			}
 
-			watch.Tasks[currentIndex].AddSegment(note)
+			selectedTask.AddSegment(note)
 
 			saveAndRefresh()
 			app.SetRoot(mainLayout, true)
@@ -479,45 +482,41 @@ func main() {
 
 	// Function to create new segment without note
 	createSegmentWithoutNote := func() {
-		row, _ := table.GetSelection()
-		currentIndex := getTaskIndex(row)
-		if currentIndex < 0 || currentIndex >= len(watch.Tasks) {
+		selectedTask, ok := getSelectedTask()
+		if !ok {
 			return // No task selected
 		}
 
 		// Check if there's already an open segment
-		for _, segment := range watch.Tasks[currentIndex].Segments {
-			if segment.Finish.IsZero() {
-				return // Already has an open segment, don't create another
-			}
+		if selectedTask.HasUnclosedSegment() {
+			return // Already has an open segment, don't create another
 		}
 
-		watch.Tasks[currentIndex].AddSegment("")
+		selectedTask.AddSegment("")
 
 		saveAndRefresh()
 	}
 
 	// Function to end an open segment
 	endSegment := func() {
-		row, _ := table.GetSelection()
-		currentIndex := getTaskIndex(row)
-		if currentIndex < 0 || currentIndex >= len(watch.Tasks) {
+		selectedTask, ok := getSelectedTask()
+		if !ok {
 			return // No task selected
 		}
 
-		watch.Tasks[currentIndex].CloseSegment()
+		selectedTask.CloseSegment()
 		saveAndRefresh()
 	}
 
 	// Function to change task category
 	changeTaskCategory := func(category string) {
-		row, _ := table.GetSelection()
-		currentIndex := getTaskIndex(row)
-		if currentIndex < 0 || currentIndex >= len(watch.Tasks) {
+		selectedTask, ok := getSelectedTask()
+		if !ok {
 			return // No task selected
 		}
 
-		watch.Tasks[currentIndex].SetCategory(category)
+		selectedTask.SetCategory(category)
+
 		saveAndRefresh()
 	}
 
@@ -525,18 +524,16 @@ func main() {
 	cycleCategoryFilter := func() {
 		filterIndex = (filterIndex + 1) % len(categoryFilters)
 		currentCategoryFilter = categoryFilters[filterIndex]
+
 		saveAndRefresh()
 	}
 
 	// Function to show segment details for the selected task
 	showSegmentDetails := func() {
-		row, _ := table.GetSelection()
-		currentIndex := getTaskIndex(row)
-		if currentIndex < 0 || currentIndex >= len(watch.Tasks) {
+		selectedTask, ok := getSelectedTask()
+		if !ok {
 			return // No task selected
 		}
-
-		selectedTask := watch.Tasks[currentIndex]
 
 		// Create segment details text view
 		segmentView := tview.NewTextView().
@@ -659,6 +656,7 @@ func main() {
 		for range ticker.C {
 			row, _ := table.GetSelection()
 			currentIndex := getTaskIndex(row)
+
 			if currentIndex >= 0 && currentIndex < len(watch.Tasks) {
 				task := watch.Tasks[currentIndex]
 				// Only update if there's an open segment

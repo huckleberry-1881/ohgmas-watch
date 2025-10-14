@@ -2,22 +2,34 @@ package task
 
 import "time"
 
+// isSegmentInRange checks if a closed segment falls within the specified time range.
+// Returns true if the segment is closed and its finish time is within the range.
+func isSegmentInRange(segment *Segment, start, finish *time.Time) bool {
+	// Only consider closed segments
+	if segment.Finish.IsZero() {
+		return false
+	}
+
+	// Check if segment finished before the start time
+	if start != nil && segment.Finish.Before(*start) {
+		return false
+	}
+
+	// Check if segment finished after the finish time
+	if finish != nil && segment.Finish.After(*finish) {
+		return false
+	}
+
+	return true
+}
+
 // HasSegmentsInRange checks if a task has any closed segments within the time range.
 func (t *Task) HasSegmentsInRange(start, finish *time.Time) bool {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
 	for _, segment := range t.Segments {
-		if !segment.Finish.IsZero() {
-			// Check if segment finished within the time range
-			if start != nil && segment.Finish.Before(*start) {
-				continue
-			}
-
-			if finish != nil && segment.Finish.After(*finish) {
-				continue
-			}
-			// Found at least one segment in range
+		if isSegmentInRange(segment, start, finish) {
 			return true
 		}
 	}
@@ -33,15 +45,7 @@ func (t *Task) GetFilteredClosedSegmentsDuration(start, finish *time.Time) time.
 	var totalDuration time.Duration
 
 	for _, segment := range t.Segments {
-		if !segment.Finish.IsZero() {
-			// Skip segments that finished before the start time
-			if start != nil && segment.Finish.Before(*start) {
-				continue
-			}
-			// Skip segments that finished after the finish time
-			if finish != nil && segment.Finish.After(*finish) {
-				continue
-			}
+		if isSegmentInRange(segment, start, finish) {
 			totalDuration += segment.Finish.Sub(segment.Create)
 		}
 	}

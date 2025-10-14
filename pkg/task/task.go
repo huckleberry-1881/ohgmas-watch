@@ -152,6 +152,7 @@ func (w *Watch) LoadTasks() error {
 func (t *Task) SetCategory(category string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
 	t.Category = category
 }
 
@@ -159,6 +160,7 @@ func (t *Task) SetCategory(category string) {
 func (t *Task) GetCategory() string {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
+
 	return t.Category
 }
 
@@ -168,6 +170,7 @@ func (w *Watch) GetTasksByCategory(category string) []*Task {
 	defer w.mu.RUnlock()
 
 	var filteredTasks []*Task
+
 	for _, task := range w.Tasks {
 		if task.GetCategory() == category {
 			filteredTasks = append(filteredTasks, task)
@@ -183,6 +186,7 @@ func (w *Watch) GetTasksSortedByActivityWithFilter(categoryFilter string) []*Tas
 	if categoryFilter == "" {
 		return w.GetTasksSortedByActivity()
 	}
+
 	return w.GetTasksByCategory(categoryFilter)
 }
 
@@ -207,9 +211,11 @@ func sortTasksByActivity(tasks []*Task) []*Task {
 		if lastActivityA.IsZero() && lastActivityB.IsZero() {
 			return false // Keep original order for tasks with no segments
 		}
+
 		if lastActivityA.IsZero() {
 			return false // Task A goes after task B
 		}
+
 		if lastActivityB.IsZero() {
 			return true // Task A goes before task B
 		}

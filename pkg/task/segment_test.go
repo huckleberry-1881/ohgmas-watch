@@ -47,8 +47,12 @@ func TestHasSegmentsInRange(t *testing.T) {
 			segments: []*Segment{
 				{Create: baseTime, Finish: baseTime.Add(time.Hour)},
 			},
-			start:    func() *time.Time { t := baseTime.Add(2 * time.Hour); return &t }(),
-			finish:   nil,
+			start: func() *time.Time {
+				t := baseTime.Add(2 * time.Hour)
+
+				return &t
+			}(),
+			finish: nil,
 			expected: false,
 		},
 		{
@@ -56,8 +60,12 @@ func TestHasSegmentsInRange(t *testing.T) {
 			segments: []*Segment{
 				{Create: baseTime.Add(3 * time.Hour), Finish: baseTime.Add(4 * time.Hour)},
 			},
-			start:    nil,
-			finish:   func() *time.Time { t := baseTime.Add(2 * time.Hour); return &t }(),
+			start: nil,
+			finish: func() *time.Time {
+				t := baseTime.Add(2 * time.Hour)
+
+				return &t
+			}(),
 			expected: false,
 		},
 		{
@@ -65,8 +73,16 @@ func TestHasSegmentsInRange(t *testing.T) {
 			segments: []*Segment{
 				{Create: baseTime.Add(time.Hour), Finish: baseTime.Add(2 * time.Hour)},
 			},
-			start:    func() *time.Time { t := baseTime; return &t }(),
-			finish:   func() *time.Time { t := baseTime.Add(3 * time.Hour); return &t }(),
+			start: func() *time.Time {
+				t := baseTime
+
+				return &t
+			}(),
+			finish: func() *time.Time {
+				t := baseTime.Add(3 * time.Hour)
+
+				return &t
+			}(),
 			expected: true,
 		},
 	}
@@ -123,7 +139,11 @@ func TestGetFilteredClosedSegmentsDuration(t *testing.T) {
 				{Create: baseTime, Finish: baseTime.Add(time.Hour)},
 				{Create: baseTime.Add(2 * time.Hour), Finish: baseTime.Add(3 * time.Hour)},
 			},
-			start:    func() *time.Time { t := baseTime.Add(90 * time.Minute); return &t }(),
+			start: func() *time.Time {
+				t := baseTime.Add(90 * time.Minute)
+
+				return &t
+			}(),
 			finish:   nil,
 			expected: time.Hour,
 		},
@@ -133,8 +153,12 @@ func TestGetFilteredClosedSegmentsDuration(t *testing.T) {
 				{Create: baseTime, Finish: baseTime.Add(time.Hour)},
 				{Create: baseTime.Add(2 * time.Hour), Finish: baseTime.Add(3 * time.Hour)},
 			},
-			start:    nil,
-			finish:   func() *time.Time { t := baseTime.Add(90 * time.Minute); return &t }(),
+			start: nil,
+			finish: func() *time.Time {
+				t := baseTime.Add(90 * time.Minute)
+
+				return &t
+			}(),
 			expected: time.Hour,
 		},
 	}
@@ -310,6 +334,7 @@ func TestGetCurrentSegmentDuration(t *testing.T) {
 			if tc.expected && result == 0 {
 				t.Error("Expected duration > 0, got 0")
 			}
+
 			if !tc.expected && result != 0 {
 				t.Errorf("Expected duration 0, got %v", result)
 			}

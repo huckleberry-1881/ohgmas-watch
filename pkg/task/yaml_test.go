@@ -189,6 +189,7 @@ func TestSaveTasksMultiple(t *testing.T) {
 
 	// Load and verify
 	loadedWatch := &Watch{Tasks: []*Task{}}
+
 	err = loadedWatch.LoadTasksFromFile(tempFile)
 	if err != nil {
 		t.Errorf("Failed to load saved file: %v", err)
@@ -225,6 +226,7 @@ func TestLoadTasksNonExistent(t *testing.T) {
 	nonExistentFile := filepath.Join(tempDir, "non-existent.yaml")
 
 	watch := &Watch{Tasks: []*Task{}}
+
 	err := watch.LoadTasksFromFile(nonExistentFile)
 	if err != nil {
 		t.Errorf("loadTasksFromFile should not error on non-existent file, got: %v", err)
@@ -242,6 +244,7 @@ func TestLoadTasksEmpty(t *testing.T) {
 	tempFile := createTempTasksFile(t, "[]")
 
 	watch := &Watch{Tasks: []*Task{}}
+
 	err := watch.LoadTasksFromFile(tempFile)
 	if err != nil {
 		t.Errorf("loadTasksFromFile failed: %v", err)
@@ -276,6 +279,7 @@ func TestLoadTasksValid(t *testing.T) {
 	tempFile := createTempTasksFile(t, yamlContent)
 
 	watch := &Watch{Tasks: []*Task{}}
+
 	err := watch.LoadTasksFromFile(tempFile)
 	if err != nil {
 		t.Errorf("loadTasksFromFile failed: %v", err)
@@ -332,6 +336,7 @@ func TestLoadTasksInvalidYAML(t *testing.T) {
 	tempFile := createTempTasksFile(t, invalidYAML)
 
 	watch := &Watch{Tasks: []*Task{}}
+
 	err := watch.LoadTasksFromFile(tempFile)
 	if err == nil {
 		t.Errorf("Expected error for invalid YAML, but got none")
@@ -379,6 +384,7 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 
 	// Load
 	loadedWatch := &Watch{Tasks: []*Task{}}
+
 	err = loadedWatch.LoadTasksFromFile(tempFile)
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
@@ -463,6 +469,7 @@ func TestSaveTasksSpecialCharacters(t *testing.T) {
 	}
 
 	loadedWatch := &Watch{Tasks: []*Task{}}
+
 	err = loadedWatch.LoadTasksFromFile(tempFile)
 	if err != nil {
 		t.Errorf("Failed to load tasks with special characters: %v", err)
@@ -518,6 +525,7 @@ func TestSaveLoadLargeTasks(t *testing.T) {
 	}
 
 	loadedWatch := &Watch{Tasks: []*Task{}}
+
 	err = loadedWatch.LoadTasksFromFile(tempFile)
 	if err != nil {
 		t.Errorf("Failed to load large task set: %v", err)

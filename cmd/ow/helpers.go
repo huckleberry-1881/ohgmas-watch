@@ -6,7 +6,12 @@ import (
 )
 
 // formatDuration formats a duration into a human-readable string.
+// Returns "0m" for zero durations.
 func formatDuration(d time.Duration) string {
+	if d == 0 {
+		return "0m"
+	}
+
 	hours := int(d.Hours())
 	minutes := int(d.Minutes()) % 60
 

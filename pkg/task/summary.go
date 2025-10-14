@@ -61,39 +61,10 @@ func (w *Watch) GetSummaryByTagset(start, finish *time.Time) []TagsetSummary {
 
 // GetTasksSortedByActivity returns tasks sorted by last activity (most recent first).
 func (w *Watch) GetTasksSortedByActivity() []*Task {
-	// Create index mapping for sorting
-	taskIndices := make([]int, len(w.Tasks))
-	for i := range taskIndices {
-		taskIndices[i] = i
-	}
+	w.mu.RLock()
+	defer w.mu.RUnlock()
 
-	sort.Slice(taskIndices, func(i, j int) bool {
-		taskA, taskB := w.Tasks[taskIndices[i]], w.Tasks[taskIndices[j]]
-		lastActivityA := taskA.GetLastActivity()
-		lastActivityB := taskB.GetLastActivity()
-
-		// Tasks with no segments go to the bottom
-		if lastActivityA.IsZero() && lastActivityB.IsZero() {
-			return false // Keep original order for tasks with no segments
-		}
-		if lastActivityA.IsZero() {
-			return false // Task A goes after task B
-		}
-		if lastActivityB.IsZero() {
-			return true // Task A goes before task B
-		}
-
-		// Sort by most recent activity first
-		return lastActivityA.After(lastActivityB)
-	})
-
-	// Return sorted tasks
-	sorted := make([]*Task, len(w.Tasks))
-	for i, idx := range taskIndices {
-		sorted[i] = w.Tasks[idx]
-	}
-
-	return sorted
+	return sortTasksByActivity(w.Tasks)
 }
 
 // GetTaskIndex returns the original index of a task in the Watch.Tasks slice.
