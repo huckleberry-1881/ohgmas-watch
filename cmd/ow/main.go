@@ -15,13 +15,19 @@ import (
 )
 
 // Function to generate summary by tagset.
-func generateSummary(includeTasks bool, start, finish *time.Time) error {
+func generateSummary(includeTasks bool, start, finish *time.Time, filePath string) error {
 	// Load tasks
 	watch := &task.Watch{
 		Tasks: []*task.Task{},
 	}
 
-	err := watch.LoadTasks()
+	var err error
+	if filePath != "" {
+		err = watch.LoadTasksFromFile(filePath)
+	} else {
+		err = watch.LoadTasks()
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to load tasks: %w", err)
 	}
@@ -67,6 +73,8 @@ func main() {
 		"Filter segments to only include those closed after this datetime (RFC3339 format: 2006-01-02T15:04:05Z)")
 	finishFlag := flag.String("finish", "",
 		"Filter segments to only include those closed before this datetime (RFC3339 format: 2006-01-02T15:04:05Z)")
+	fileFlag := flag.String("file", "",
+		"Path to a custom YAML file for task storage (default: ~/.ohgmas-watch/tasks.yaml)")
 
 	// Parse command line flags
 	flag.Parse()
@@ -79,7 +87,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		err = generateSummary(*tasksFlag, start, finish)
+		err = generateSummary(*tasksFlag, start, finish, *fileFlag)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
@@ -97,12 +105,20 @@ func main() {
 	// Start TUI application
 	app := tview.NewApplication()
 
+	// Determine which file to use
+	var tasksFilePath string
+	if *fileFlag != "" {
+		tasksFilePath = *fileFlag
+	} else {
+		tasksFilePath = task.GetTasksFilePath()
+	}
+
 	// Task storage - load from file
 	watch := &task.Watch{
 		Tasks: []*task.Task{},
 	}
 
-	err := watch.LoadTasks()
+	err := watch.LoadTasksFromFile(tasksFilePath)
 	if err != nil {
 		// If we can't load tasks, start with empty watch
 		watch.Tasks = []*task.Task{}
@@ -155,7 +171,7 @@ func main() {
 	commandText := tview.NewTextView().
 		SetDynamicColors(true).
 		SetText("[yellow]Commands:[white] ↑/↓ Navigate | [green]Enter[white] Segment Details | " +
-			"[green]t[white] New Task | [green]s[white] New Segment | [green]n[white] New Segment w/ Note | " +
+			"[green]t[white] New Task | [green]m[white] Modify Task | [green]s[white] New Segment | [green]n[white] New Segment w/ Note | " +
 			"[green]e[white] End Segment | [blue]c[white] Completed | [blue]w[white] Work | [blue]b[white] Backlog | " +
 			"[purple]f[white] Filter | [red]Ctrl+C[white] Exit")
 	commandText.SetBorder(true).SetTitle("Commands")
@@ -193,7 +209,7 @@ func main() {
 
 	// Helper function to save tasks and refresh the table
 	saveAndRefresh := func() {
-		err = watch.SaveTasks()
+		err = watch.SaveTasksToFile(tasksFilePath)
 		if err != nil {
 			panic(err)
 		}
@@ -430,6 +446,72 @@ func main() {
 		app.SetRoot(centeredForm, true)
 	}
 
+	// Function to show modify task form
+	showModifyTaskForm := func() {
+		selectedTask, ok := getSelectedTask()
+		if !ok {
+			return // No task selected
+		}
+
+		form := tview.NewForm()
+		form.SetBorder(true).SetTitle("Modify Task")
+		form.SetLabelColor(tcell.ColorWhite)
+		form.SetFieldBackgroundColor(tcell.ColorGray)
+		form.SetFieldTextColor(tcell.ColorGreen)
+		form.SetButtonTextColor(tcell.ColorWhite)
+
+		// Pre-populate with current values
+		var name, description, tags string
+		name = selectedTask.Name
+		description = selectedTask.Description
+		tags = strings.Join(selectedTask.Tags, ", ")
+
+		form.AddInputField("Name:", name, 50, nil, func(text string) {
+			name = text
+		})
+		form.AddTextArea("Description:", description, 50, 5, 500, func(text string) {
+			description = text
+		})
+		form.AddInputField("Tags (comma-separated):", tags, 50, nil, func(text string) {
+			tags = text
+		})
+
+		form.AddButton("OK", func() {
+			if name != "" {
+				tagList := []string{}
+
+				if tags != "" {
+					for tag := range strings.SplitSeq(tags, ",") {
+						tagList = append(tagList, strings.TrimSpace(tag))
+					}
+				}
+
+				// Update the task
+				selectedTask.Name = name
+				selectedTask.Description = description
+				selectedTask.Tags = tagList
+
+				saveAndRefresh()
+				app.SetRoot(mainLayout, true)
+			}
+		})
+
+		form.AddButton("Cancel", func() {
+			app.SetRoot(mainLayout, true)
+		})
+
+		// Center the form
+		centeredForm := tview.NewFlex().
+			AddItem(nil, 0, 1, false).
+			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+				AddItem(nil, 0, 1, false).
+				AddItem(form, 0, 2, true).
+				AddItem(nil, 0, 1, false), 0, 2, true).
+			AddItem(nil, 0, 1, false)
+
+		app.SetRoot(centeredForm, true)
+	}
+
 	// Function to show new segment form with note
 	showNewSegmentWithNoteForm := func() {
 		selectedTask, ok := getSelectedTask()
@@ -609,6 +691,10 @@ func main() {
 		switch {
 		case event.Rune() == 't':
 			showNewTaskForm()
+
+			return nil
+		case event.Rune() == 'm':
+			showModifyTaskForm()
 
 			return nil
 		case event.Rune() == 's':
