@@ -74,7 +74,7 @@ func main() {
 	finishFlag := flag.String("finish", "",
 		"Filter segments to only include those closed before this datetime (RFC3339 format: 2006-01-02T15:04:05Z)")
 	fileFlag := flag.String("file", "",
-		"Path to a custom YAML file for task storage (default: ~/.ohgmas-watch/tasks.yaml)")
+		"Path to a custom YAML file for task storage (default: ~/.ohgmas-tasks.yaml)")
 
 	// Parse command line flags
 	flag.Parse()
@@ -403,13 +403,13 @@ func main() {
 
 		var name, description, tags string
 
-		form.AddInputField("Name:", "", 50, nil, func(text string) {
+		form.AddInputField("Name:", "", 70, nil, func(text string) {
 			name = text
 		})
-		form.AddTextArea("Description:", "", 50, 5, 500, func(text string) {
+		form.AddTextArea("Description:", "", 70, 10, 1000, func(text string) {
 			description = text
 		})
-		form.AddInputField("Tags (comma-separated):", "", 50, nil, func(text string) {
+		form.AddInputField("Tags (comma-separated):", "", 70, nil, func(text string) {
 			tags = text
 		})
 
@@ -466,13 +466,13 @@ func main() {
 		description = selectedTask.Description
 		tags = strings.Join(selectedTask.Tags, ", ")
 
-		form.AddInputField("Name:", name, 50, nil, func(text string) {
+		form.AddInputField("Name:", name, 70, nil, func(text string) {
 			name = text
 		})
-		form.AddTextArea("Description:", description, 50, 5, 500, func(text string) {
+		form.AddTextArea("Description:", description, 70, 10, 1000, func(text string) {
 			description = text
 		})
-		form.AddInputField("Tags (comma-separated):", tags, 50, nil, func(text string) {
+		form.AddInputField("Tags (comma-separated):", tags, 70, nil, func(text string) {
 			tags = text
 		})
 
@@ -626,6 +626,14 @@ func main() {
 
 		// Build segment information
 		var content strings.Builder
+
+		// Add task description at the top if it exists
+		if selectedTask.Description != "" {
+			content.WriteString("[cyan]Description:[-]\n")
+			content.WriteString(fmt.Sprintf("%s\n\n", selectedTask.Description))
+			content.WriteString("[yellow]---[-]\n\n")
+		}
+
 		if len(selectedTask.Segments) == 0 {
 			content.WriteString("[gray]No segments found for this task.[-]\n")
 		} else {
