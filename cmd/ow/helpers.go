@@ -47,12 +47,10 @@ func parseTimeFlags(startFlag, finishFlag string) (*time.Time, *time.Time, error
 	return start, finish, nil
 }
 
-// getLastMonday returns the time of the most recent Monday at 00:00:00.
-func getLastMonday() time.Time {
-	now := time.Now()
-
+// getMondayOfWeek returns the Monday of the week containing the given time at 00:00:00.
+func getMondayOfWeek(t time.Time) time.Time {
 	// Get the current weekday (0 = Sunday, 1 = Monday, etc.)
-	currentWeekday := int(now.Weekday())
+	currentWeekday := int(t.Weekday())
 
 	// Calculate days to subtract to get to Monday
 	var daysBack int
@@ -63,8 +61,28 @@ func getLastMonday() time.Time {
 	}
 
 	// Get Monday's date
-	monday := now.AddDate(0, 0, -daysBack)
+	monday := t.AddDate(0, 0, -daysBack)
 
 	// Set to beginning of day (00:00:00)
 	return time.Date(monday.Year(), monday.Month(), monday.Day(), 0, 0, 0, 0, monday.Location())
+}
+
+// getLastMonday returns the time of the most recent Monday at 00:00:00.
+func getLastMonday() time.Time {
+	return getMondayOfWeek(time.Now())
+}
+
+// getWeekStarts returns all Monday dates from earliest to latest covering the time range.
+// If start is nil, uses the earliest segment date. If finish is nil, uses now.
+func getWeekStarts(earliestSegment, latestSegment time.Time) []time.Time {
+	// Get the Monday of the week containing the earliest segment
+	weekStart := getMondayOfWeek(earliestSegment)
+	weekEnd := getMondayOfWeek(latestSegment)
+
+	var weeks []time.Time
+	for current := weekStart; !current.After(weekEnd); current = current.AddDate(0, 0, 7) {
+		weeks = append(weeks, current)
+	}
+
+	return weeks
 }
