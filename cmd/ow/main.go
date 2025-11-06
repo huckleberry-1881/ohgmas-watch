@@ -14,6 +14,30 @@ import (
 	"github.com/huckleberry-1881/ohgmas-watch/pkg/task"
 )
 
+// parseTagsFromString parses a comma-separated string of tags into a slice.
+func parseTagsFromString(tags string) []string {
+	tagList := []string{}
+
+	if tags != "" {
+		for tag := range strings.SplitSeq(tags, ",") {
+			tagList = append(tagList, strings.TrimSpace(tag))
+		}
+	}
+
+	return tagList
+}
+
+// centerForm creates a centered layout for a form.
+func centerForm(form *tview.Form) *tview.Flex {
+	return tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(form, 0, 2, true).
+			AddItem(nil, 0, 1, false), 0, 2, true).
+		AddItem(nil, 0, 1, false)
+}
+
 // Function to generate summary by tagset.
 func generateSummary(includeTasks bool, start, finish *time.Time, filePath string) error {
 	// Load tasks
@@ -32,34 +56,65 @@ func generateSummary(includeTasks bool, start, finish *time.Time, filePath strin
 		return fmt.Errorf("failed to load tasks: %w", err)
 	}
 
-	// Get summary by tagset
-	summaries := watch.GetSummaryByTagset(start, finish)
+	// Get earliest and latest segment times to determine week range
+	earliest, latest := watch.GetEarliestAndLatestSegmentTimes()
 
-	// Print summary
-	for _, summary := range summaries {
-		taskCount := len(summary.Tasks)
-		duration := summary.Duration
+	// If no segments exist, return early
+	if earliest.IsZero() {
+		_, _ = fmt.Fprintf(os.Stdout, "No segments found\n")
+		return nil
+	}
 
-		// Format duration for display
-		durationStr := formatDuration(duration)
+	// Apply user-specified start/finish filters if provided
+	filterStart := start
+	filterFinish := finish
 
-		// Use singular/plural form correctly
-		taskWord := "tasks"
-		if taskCount == 1 {
-			taskWord = "task"
-		}
+	// Use earliest/latest if no filters provided
+	if filterStart == nil {
+		filterStart = &earliest
+	}
+	if filterFinish == nil {
+		filterFinish = &latest
+	}
 
-		_, _ = fmt.Fprintf(os.Stdout, "%s totaling %d %s and %s\n", summary.Tagset, taskCount, taskWord, durationStr)
+	// Get all week starts in the range
+	weekStarts := getWeekStarts(*filterStart, *filterFinish)
 
-		// If includeTasks is true, list individual tasks
-		if includeTasks {
-			for _, taskItem := range summary.Tasks {
-				taskDuration := taskItem.GetFilteredClosedSegmentsDuration(start, finish)
-				taskDurationStr := formatDuration(taskDuration)
+	// Get weekly summaries (these will be filtered by the start/finish times)
+	var weeklySummaries []task.WeeklySummary
+	if includeTasks {
+		weeklySummaries = watch.GetWeeklySummaryByTagsetWithTasks(weekStarts)
+	} else {
+		weeklySummaries = watch.GetWeeklySummaryByTagset(weekStarts)
+	}
 
-				_, _ = fmt.Fprintf(os.Stdout, "  Task: %s %s\n", taskItem.Name, taskDurationStr)
+	// Print weekly summaries
+	for _, weeklySummary := range weeklySummaries {
+		// Print week header
+		weekStartStr := weeklySummary.WeekStart.Format("01/02/2006")
+		_, _ = fmt.Fprintf(os.Stdout, "Week starting %s\n", weekStartStr)
+
+		// Print each tagset
+		for _, tagsetSummary := range weeklySummary.Tagsets {
+			durationStr := formatDuration(tagsetSummary.Duration)
+			_, _ = fmt.Fprintf(os.Stdout, "- %s [%s]\n", tagsetSummary.Tagset, durationStr)
+
+			// If includeTasks is true, list individual tasks under each tagset
+			if includeTasks {
+				// Calculate the week end for filtering
+				weekEnd := weeklySummary.WeekStart.AddDate(0, 0, 7)
+
+				for _, taskItem := range tagsetSummary.Tasks {
+					taskDuration := taskItem.GetFilteredClosedSegmentsDuration(&weeklySummary.WeekStart, &weekEnd)
+					taskDurationStr := formatDuration(taskDuration)
+
+					_, _ = fmt.Fprintf(os.Stdout, "-- %s [%s]\n", taskItem.Name, taskDurationStr)
+				}
 			}
 		}
+
+		// Add blank line between weeks
+		_, _ = fmt.Fprintf(os.Stdout, "\n")
 	}
 
 	return nil
@@ -415,13 +470,7 @@ func main() {
 
 		form.AddButton("Create", func() {
 			if name != "" {
-				tagList := []string{}
-
-				if tags != "" {
-					for tag := range strings.SplitSeq(tags, ",") {
-						tagList = append(tagList, strings.TrimSpace(tag))
-					}
-				}
+				tagList := parseTagsFromString(tags)
 
 				watch.AddTask(name, description, tagList, "work")
 
@@ -434,16 +483,7 @@ func main() {
 			app.SetRoot(mainLayout, true)
 		})
 
-		// Center the form
-		centeredForm := tview.NewFlex().
-			AddItem(nil, 0, 1, false).
-			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-				AddItem(nil, 0, 1, false).
-				AddItem(form, 0, 2, true).
-				AddItem(nil, 0, 1, false), 0, 2, true).
-			AddItem(nil, 0, 1, false)
-
-		app.SetRoot(centeredForm, true)
+		app.SetRoot(centerForm(form), true)
 	}
 
 	// Function to show modify task form
@@ -479,13 +519,7 @@ func main() {
 
 		form.AddButton("OK", func() {
 			if name != "" {
-				tagList := []string{}
-
-				if tags != "" {
-					for tag := range strings.SplitSeq(tags, ",") {
-						tagList = append(tagList, strings.TrimSpace(tag))
-					}
-				}
+				tagList := parseTagsFromString(tags)
 
 				// Update the task
 				selectedTask.Name = name
@@ -501,16 +535,7 @@ func main() {
 			app.SetRoot(mainLayout, true)
 		})
 
-		// Center the form
-		centeredForm := tview.NewFlex().
-			AddItem(nil, 0, 1, false).
-			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-				AddItem(nil, 0, 1, false).
-				AddItem(form, 0, 2, true).
-				AddItem(nil, 0, 1, false), 0, 2, true).
-			AddItem(nil, 0, 1, false)
-
-		app.SetRoot(centeredForm, true)
+		app.SetRoot(centerForm(form), true)
 	}
 
 	// Function to show new segment form with note
@@ -551,16 +576,7 @@ func main() {
 			app.SetRoot(mainLayout, true)
 		})
 
-		// Center the form
-		centeredForm := tview.NewFlex().
-			AddItem(nil, 0, 1, false).
-			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-				AddItem(nil, 0, 1, false).
-				AddItem(form, 0, 2, true).
-				AddItem(nil, 0, 1, false), 0, 2, true).
-			AddItem(nil, 0, 1, false)
-
-		app.SetRoot(centeredForm, true)
+		app.SetRoot(centerForm(form), true)
 	}
 
 	// Function to create new segment without note
