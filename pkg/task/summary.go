@@ -6,6 +6,33 @@ import (
 	"time"
 )
 
+// getTagsetKey creates a sorted, comma-separated key from a slice of tags.
+func getTagsetKey(tags []string) string {
+	if len(tags) == 0 {
+		return "(no tags)"
+	}
+
+	tagset := make([]string, len(tags))
+	copy(tagset, tags)
+	sort.Strings(tagset)
+
+	return strings.Join(tagset, ", ")
+}
+
+// sortTagsetSummaries converts a tagset map to a slice and sorts by duration (descending).
+func sortTagsetSummaries(tagsetMap map[string]*TagsetSummary) []TagsetSummary {
+	summaries := make([]TagsetSummary, 0, len(tagsetMap))
+	for _, summary := range tagsetMap {
+		summaries = append(summaries, *summary)
+	}
+
+	sort.Slice(summaries, func(i, j int) bool {
+		return summaries[i].Duration > summaries[j].Duration
+	})
+
+	return summaries
+}
+
 // TagsetSummary represents a summary of tasks grouped by tagset.
 type TagsetSummary struct {
 	Tagset   string
@@ -30,15 +57,7 @@ func (w *Watch) GetSummaryByTagset(start, finish *time.Time) []TagsetSummary {
 			continue
 		}
 
-		// Create a sorted tagset key
-		tagset := make([]string, len(currentTask.Tags))
-		copy(tagset, currentTask.Tags)
-		sort.Strings(tagset)
-
-		tagsetKey := strings.Join(tagset, ", ")
-		if tagsetKey == "" {
-			tagsetKey = "(no tags)"
-		}
+		tagsetKey := getTagsetKey(currentTask.Tags)
 
 		if tagsetMap[tagsetKey] == nil {
 			tagsetMap[tagsetKey] = &TagsetSummary{
@@ -52,17 +71,7 @@ func (w *Watch) GetSummaryByTagset(start, finish *time.Time) []TagsetSummary {
 		tagsetMap[tagsetKey].Duration += currentTask.GetFilteredClosedSegmentsDuration(start, finish)
 	}
 
-	// Convert map to slice and sort by total duration (descending)
-	summaries := make([]TagsetSummary, 0, len(tagsetMap))
-	for _, summary := range tagsetMap {
-		summaries = append(summaries, *summary)
-	}
-
-	sort.Slice(summaries, func(i, j int) bool {
-		return summaries[i].Duration > summaries[j].Duration
-	})
-
-	return summaries
+	return sortTagsetSummaries(tagsetMap)
 }
 
 // GetTasksSortedByActivity returns tasks sorted by last activity (most recent first).
@@ -153,15 +162,7 @@ func (w *Watch) GetWeeklySummaryByTagsetWithTasks(weekStarts []time.Time) []Week
 				continue
 			}
 
-			// Create a sorted tagset key
-			tagset := make([]string, len(currentTask.Tags))
-			copy(tagset, currentTask.Tags)
-			sort.Strings(tagset)
-
-			tagsetKey := strings.Join(tagset, ", ")
-			if tagsetKey == "" {
-				tagsetKey = "(no tags)"
-			}
+			tagsetKey := getTagsetKey(currentTask.Tags)
 
 			if tagsetMap[tagsetKey] == nil {
 				tagsetMap[tagsetKey] = &TagsetSummary{
@@ -176,15 +177,7 @@ func (w *Watch) GetWeeklySummaryByTagsetWithTasks(weekStarts []time.Time) []Week
 			tagsetMap[tagsetKey].Duration += taskDuration
 		}
 
-		// Convert map to slice and sort by total duration (descending)
-		tagsetSummaries := make([]TagsetSummary, 0, len(tagsetMap))
-		for _, summary := range tagsetMap {
-			tagsetSummaries = append(tagsetSummaries, *summary)
-		}
-
-		sort.Slice(tagsetSummaries, func(i, j int) bool {
-			return tagsetSummaries[i].Duration > tagsetSummaries[j].Duration
-		})
+		tagsetSummaries := sortTagsetSummaries(tagsetMap)
 
 		// Only include weeks that have data
 		if len(tagsetSummaries) > 0 {

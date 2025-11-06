@@ -14,6 +14,30 @@ import (
 	"github.com/huckleberry-1881/ohgmas-watch/pkg/task"
 )
 
+// parseTagsFromString parses a comma-separated string of tags into a slice.
+func parseTagsFromString(tags string) []string {
+	tagList := []string{}
+
+	if tags != "" {
+		for tag := range strings.SplitSeq(tags, ",") {
+			tagList = append(tagList, strings.TrimSpace(tag))
+		}
+	}
+
+	return tagList
+}
+
+// centerForm creates a centered layout for a form.
+func centerForm(form *tview.Form) *tview.Flex {
+	return tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(form, 0, 2, true).
+			AddItem(nil, 0, 1, false), 0, 2, true).
+		AddItem(nil, 0, 1, false)
+}
+
 // Function to generate summary by tagset.
 func generateSummary(includeTasks bool, start, finish *time.Time, filePath string) error {
 	// Load tasks
@@ -446,13 +470,7 @@ func main() {
 
 		form.AddButton("Create", func() {
 			if name != "" {
-				tagList := []string{}
-
-				if tags != "" {
-					for tag := range strings.SplitSeq(tags, ",") {
-						tagList = append(tagList, strings.TrimSpace(tag))
-					}
-				}
+				tagList := parseTagsFromString(tags)
 
 				watch.AddTask(name, description, tagList, "work")
 
@@ -465,16 +483,7 @@ func main() {
 			app.SetRoot(mainLayout, true)
 		})
 
-		// Center the form
-		centeredForm := tview.NewFlex().
-			AddItem(nil, 0, 1, false).
-			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-				AddItem(nil, 0, 1, false).
-				AddItem(form, 0, 2, true).
-				AddItem(nil, 0, 1, false), 0, 2, true).
-			AddItem(nil, 0, 1, false)
-
-		app.SetRoot(centeredForm, true)
+		app.SetRoot(centerForm(form), true)
 	}
 
 	// Function to show modify task form
@@ -510,13 +519,7 @@ func main() {
 
 		form.AddButton("OK", func() {
 			if name != "" {
-				tagList := []string{}
-
-				if tags != "" {
-					for tag := range strings.SplitSeq(tags, ",") {
-						tagList = append(tagList, strings.TrimSpace(tag))
-					}
-				}
+				tagList := parseTagsFromString(tags)
 
 				// Update the task
 				selectedTask.Name = name
@@ -532,16 +535,7 @@ func main() {
 			app.SetRoot(mainLayout, true)
 		})
 
-		// Center the form
-		centeredForm := tview.NewFlex().
-			AddItem(nil, 0, 1, false).
-			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-				AddItem(nil, 0, 1, false).
-				AddItem(form, 0, 2, true).
-				AddItem(nil, 0, 1, false), 0, 2, true).
-			AddItem(nil, 0, 1, false)
-
-		app.SetRoot(centeredForm, true)
+		app.SetRoot(centerForm(form), true)
 	}
 
 	// Function to show new segment form with note
@@ -582,16 +576,7 @@ func main() {
 			app.SetRoot(mainLayout, true)
 		})
 
-		// Center the form
-		centeredForm := tview.NewFlex().
-			AddItem(nil, 0, 1, false).
-			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-				AddItem(nil, 0, 1, false).
-				AddItem(form, 0, 2, true).
-				AddItem(nil, 0, 1, false), 0, 2, true).
-			AddItem(nil, 0, 1, false)
-
-		app.SetRoot(centeredForm, true)
+		app.SetRoot(centerForm(form), true)
 	}
 
 	// Function to create new segment without note
