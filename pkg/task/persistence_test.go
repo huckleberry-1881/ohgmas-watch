@@ -1,4 +1,4 @@
-package task
+package task //nolint:testpackage // direct struct construction
 
 import (
 	"os"
@@ -69,6 +69,7 @@ func TestWatch_SaveAndLoadTasksFromFile(t *testing.T) {
 	if loadedWatch.Tasks[0].Description != "Description 1" {
 		t.Errorf("Task description = %q, want %q", loadedWatch.Tasks[0].Description, "Description 1")
 	}
+
 	if loadedWatch.Tasks[0].Category != "work" {
 		t.Errorf("Task category = %q, want %q", loadedWatch.Tasks[0].Category, "work")
 	}
@@ -76,6 +77,7 @@ func TestWatch_SaveAndLoadTasksFromFile(t *testing.T) {
 	if len(loadedWatch.Tasks[0].Tags) != 2 {
 		t.Errorf("Task tags count = %d, want %d", len(loadedWatch.Tasks[0].Tags), 2)
 	}
+
 	if len(loadedWatch.Tasks[0].Segments) != 1 {
 		t.Errorf("Task segments count = %d, want %d", len(loadedWatch.Tasks[0].Segments), 1)
 	}
@@ -107,6 +109,7 @@ func TestWatch_LoadTasksFromFile_NonExistent(t *testing.T) {
 	if watch.Tasks == nil {
 		t.Error("LoadTasksFromFile() should initialize Tasks slice")
 	}
+
 	if len(watch.Tasks) != 0 {
 		t.Errorf("LoadTasksFromFile() should have 0 tasks, got %d", len(watch.Tasks))
 	}
@@ -218,6 +221,7 @@ func TestWatch_SaveTasksToFile_SpecialCharacters(t *testing.T) {
 	if loadedWatch.Tasks[0].Name != watch.Tasks[0].Name {
 		t.Errorf("Name not preserved: got %q, want %q", loadedWatch.Tasks[0].Name, watch.Tasks[0].Name)
 	}
+
 	if loadedWatch.Tasks[0].Description != watch.Tasks[0].Description {
 		t.Errorf("Description not preserved: got %q, want %q", loadedWatch.Tasks[0].Description, watch.Tasks[0].Description)
 	}
@@ -271,6 +275,7 @@ func TestWatch_LoadTasksFromFile_LargeTasks(t *testing.T) {
 				Note:   "Segment note",
 			})
 		}
+
 		tasks = append(tasks, &Task{
 			Name:        "Task",
 			Description: "Description",
@@ -297,6 +302,7 @@ func TestWatch_LoadTasksFromFile_LargeTasks(t *testing.T) {
 	if len(loadedWatch.Tasks) != 100 {
 		t.Errorf("Expected 100 tasks, got %d", len(loadedWatch.Tasks))
 	}
+
 	if len(loadedWatch.Tasks[0].Segments) != 50 {
 		t.Errorf("Expected 50 segments, got %d", len(loadedWatch.Tasks[0].Segments))
 	}
@@ -370,6 +376,7 @@ func TestWatch_RoundTrip_PreservesAllFields(t *testing.T) {
 	if task.Category != "completed" {
 		t.Errorf("Category = %q, want %q", task.Category, "completed")
 	}
+
 	if len(task.Tags) != 3 {
 		t.Errorf("Tags count = %d, want 3", len(task.Tags))
 	}

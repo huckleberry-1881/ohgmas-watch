@@ -132,6 +132,7 @@ func TestLoadWatchForSummary(t *testing.T) {
 				{Name: "Test Task", Category: "work"},
 			},
 		}
+
 		err := originalWatch.SaveTasksToFile(filePath)
 		if err != nil {
 			t.Fatalf("Failed to save test file: %v", err)
@@ -187,7 +188,7 @@ func TestLoadWatchForSummary(t *testing.T) {
 	})
 }
 
-func TestPrintWeeklySummaries(t *testing.T) {
+func TestPrintWeeklySummaries(t *testing.T) { //nolint:paralleltest // stdout capture
 	// Cannot run in parallel due to stdout capture
 	weekStart := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 
@@ -219,6 +220,7 @@ func TestPrintWeeklySummaries(t *testing.T) {
 	printWeeklySummaries(summaries, false)
 
 	w.Close()
+
 	os.Stdout = oldStdout
 
 	var buf bytes.Buffer
@@ -236,7 +238,7 @@ func TestPrintWeeklySummaries(t *testing.T) {
 	}
 }
 
-func TestPrintWeeklySummaries_WithTasks(t *testing.T) {
+func TestPrintWeeklySummaries_WithTasks(t *testing.T) { //nolint:paralleltest // stdout capture
 	// Cannot run in parallel due to stdout capture
 	weekStart := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 
@@ -268,6 +270,7 @@ func TestPrintWeeklySummaries_WithTasks(t *testing.T) {
 	printWeeklySummaries(summaries, true)
 
 	w.Close()
+
 	os.Stdout = oldStdout
 
 	var buf bytes.Buffer
@@ -280,7 +283,7 @@ func TestPrintWeeklySummaries_WithTasks(t *testing.T) {
 	}
 }
 
-func TestPrintTasksForTagset(t *testing.T) {
+func TestPrintTasksForTagset(t *testing.T) { //nolint:paralleltest // stdout capture
 	// Cannot run in parallel due to stdout capture
 	weekStart := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 
@@ -307,6 +310,7 @@ func TestPrintTasksForTagset(t *testing.T) {
 	printTasksForTagset(weekStart, tasks)
 
 	w.Close()
+
 	os.Stdout = oldStdout
 
 	var buf bytes.Buffer
@@ -328,13 +332,14 @@ func TestPrintTasksForTagset(t *testing.T) {
 	}
 }
 
-func TestGenerateSummary_NoSegments(t *testing.T) {
+func TestGenerateSummary_NoSegments(t *testing.T) { //nolint:paralleltest // stdout capture
 	// Cannot run in parallel due to stdout capture
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "empty-tasks.yaml")
 
 	// Create an empty watch
 	watch := &task.Watch{Tasks: []*task.Task{}}
+
 	err := watch.SaveTasksToFile(filePath)
 	if err != nil {
 		t.Fatalf("Failed to save test file: %v", err)
@@ -348,6 +353,7 @@ func TestGenerateSummary_NoSegments(t *testing.T) {
 	err = generateSummary(false, nil, nil, filePath)
 
 	w.Close()
+
 	os.Stdout = oldStdout
 
 	if err != nil {
@@ -363,7 +369,7 @@ func TestGenerateSummary_NoSegments(t *testing.T) {
 	}
 }
 
-func TestGenerateSummary_WithSegments(t *testing.T) {
+func TestGenerateSummary_WithSegments(t *testing.T) { //nolint:paralleltest // stdout capture
 	// Cannot run in parallel due to stdout capture
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "tasks-with-segments.yaml")
@@ -382,6 +388,7 @@ func TestGenerateSummary_WithSegments(t *testing.T) {
 			},
 		},
 	}
+
 	err := watch.SaveTasksToFile(filePath)
 	if err != nil {
 		t.Fatalf("Failed to save test file: %v", err)
@@ -395,6 +402,7 @@ func TestGenerateSummary_WithSegments(t *testing.T) {
 	err = generateSummary(false, nil, nil, filePath)
 
 	w.Close()
+
 	os.Stdout = oldStdout
 
 	if err != nil {
@@ -410,7 +418,7 @@ func TestGenerateSummary_WithSegments(t *testing.T) {
 	}
 }
 
-func TestGenerateSummary_WithTimeFilter(t *testing.T) {
+func TestGenerateSummary_WithTimeFilter(t *testing.T) { //nolint:paralleltest // stdout capture
 	// Cannot run in parallel due to stdout capture
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "tasks-filtered.yaml")
@@ -438,6 +446,7 @@ func TestGenerateSummary_WithTimeFilter(t *testing.T) {
 			},
 		},
 	}
+
 	err := watch.SaveTasksToFile(filePath)
 	if err != nil {
 		t.Fatalf("Failed to save test file: %v", err)
@@ -455,6 +464,7 @@ func TestGenerateSummary_WithTimeFilter(t *testing.T) {
 	err = generateSummary(false, &filterStart, &filterFinish, filePath)
 
 	w.Close()
+
 	os.Stdout = oldStdout
 
 	if err != nil {
@@ -472,7 +482,8 @@ func TestGenerateSummary_WithTimeFilter(t *testing.T) {
 }
 
 func TestGenerateSummary_InvalidFile(t *testing.T) {
-	// Cannot run in parallel due to stdout capture
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "invalid.yaml")
 
@@ -488,7 +499,7 @@ func TestGenerateSummary_InvalidFile(t *testing.T) {
 	}
 }
 
-func TestGenerateSummary_WithTasks(t *testing.T) {
+func TestGenerateSummary_WithTasks(t *testing.T) { //nolint:paralleltest // stdout capture
 	// Cannot run in parallel due to stdout capture
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "tasks-with-details.yaml")
@@ -507,6 +518,7 @@ func TestGenerateSummary_WithTasks(t *testing.T) {
 			},
 		},
 	}
+
 	err := watch.SaveTasksToFile(filePath)
 	if err != nil {
 		t.Fatalf("Failed to save test file: %v", err)
@@ -520,6 +532,7 @@ func TestGenerateSummary_WithTasks(t *testing.T) {
 	err = generateSummary(true, nil, nil, filePath)
 
 	w.Close()
+
 	os.Stdout = oldStdout
 
 	if err != nil {

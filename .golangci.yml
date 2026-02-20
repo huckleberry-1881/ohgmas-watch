@@ -11,6 +11,9 @@ linters:
           - gocyclo
           - gosmopolitan
           - gosec
+          - exhaustruct
+          - funlen
+          - varnamelen
   settings:
     depguard:
       rules:

@@ -1,4 +1,4 @@
-package task
+package task //nolint:testpackage // tests unexported functions
 
 import (
 	"sync"
@@ -90,15 +90,17 @@ func TestWatch_AddTask_Concurrent(t *testing.T) {
 	t.Parallel()
 
 	watch := &Watch{Tasks: []*Task{}}
+
 	var wg sync.WaitGroup
 
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
 
-		go func(i int) {
+		go func() {
 			defer wg.Done()
+
 			watch.AddTask("Task", "Description", []string{"tag"}, "work")
-		}(i)
+		}()
 	}
 
 	wg.Wait()
@@ -168,6 +170,7 @@ func TestTask_AddSegment_Concurrent(t *testing.T) {
 
 		go func(i int) {
 			defer wg.Done()
+
 			task.AddSegment("Note")
 		}(i)
 	}

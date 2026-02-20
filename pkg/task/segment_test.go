@@ -1,4 +1,4 @@
-package task
+package task //nolint:testpackage // tests unexported functions
 
 import (
 	"testing"
