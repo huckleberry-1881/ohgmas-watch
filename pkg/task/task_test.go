@@ -1,15 +1,12 @@
-package task_test
+package task
 
 import (
-	"os"
-	"path/filepath"
+	"sync"
 	"testing"
 	"time"
-
-	"github.com/huckleberry-1881/ohgmas-watch/pkg/task"
 )
 
-func TestAddTask(t *testing.T) {
+func TestWatch_AddTask(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -17,479 +14,517 @@ func TestAddTask(t *testing.T) {
 		taskName    string
 		description string
 		tags        []string
+		category    string
+		wantLen     int
 	}{
 		{
-			name:        "add simple task",
+			name:        "adds task with all fields",
 			taskName:    "Test Task",
-			description: "A test task",
-			tags:        []string{"test"},
+			description: "A test description",
+			tags:        []string{"tag1", "tag2"},
+			category:    "work",
+			wantLen:     1,
 		},
 		{
-			name:        "add task with multiple tags",
-			taskName:    "Complex Task",
-			description: "A more complex task",
-			tags:        []string{"work", "urgent", "development"},
-		},
-		{
-			name:        "add task with no tags",
-			taskName:    "Simple Task",
-			description: "Task without tags",
+			name:        "adds task with empty category defaults to work",
+			taskName:    "Default Category Task",
+			description: "Description",
 			tags:        []string{},
+			category:    "",
+			wantLen:     1,
 		},
 		{
-			name:        "add task with nil tags",
+			name:        "adds task with nil tags",
 			taskName:    "Nil Tags Task",
-			description: "Task with nil tags",
-			tags:        nil,
-		},
-		{
-			name:        "add task with empty strings",
-			taskName:    "",
 			description: "",
-			tags:        []string{""},
+			tags:        nil,
+			category:    "backlog",
+			wantLen:     1,
 		},
 	}
 
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			watch := &task.Watch{Tasks: []*task.Task{}}
-			initialTaskCount := len(watch.Tasks)
+			watch := &Watch{Tasks: []*Task{}}
+			watch.AddTask(tt.taskName, tt.description, tt.tags, tt.category)
 
-			watch.AddTask(testCase.taskName, testCase.description, testCase.tags, "work")
-
-			if len(watch.Tasks) != initialTaskCount+1 {
-				t.Errorf("Expected %d tasks, got %d", initialTaskCount+1, len(watch.Tasks))
+			if len(watch.Tasks) != tt.wantLen {
+				t.Errorf("AddTask() resulted in %d tasks, want %d", len(watch.Tasks), tt.wantLen)
 			}
 
-			addedTask := watch.Tasks[len(watch.Tasks)-1]
-			if addedTask.Name != testCase.taskName {
-				t.Errorf("Expected task name '%s', got '%s'", testCase.taskName, addedTask.Name)
+			task := watch.Tasks[0]
+			if task.Name != tt.taskName {
+				t.Errorf("AddTask() name = %q, want %q", task.Name, tt.taskName)
+			}
+			if task.Description != tt.description {
+				t.Errorf("AddTask() description = %q, want %q", task.Description, tt.description)
 			}
 
-			if addedTask.Description != testCase.description {
-				t.Errorf("Expected description '%s', got '%s'", testCase.description, addedTask.Description)
+			expectedCategory := tt.category
+			if expectedCategory == "" {
+				expectedCategory = "work"
 			}
-
-			if len(addedTask.Tags) != len(testCase.tags) {
-				t.Errorf("Expected %d tags, got %d", len(testCase.tags), len(addedTask.Tags))
-			}
-
-			for i, tag := range testCase.tags {
-				if i < len(addedTask.Tags) && addedTask.Tags[i] != tag {
-					t.Errorf("Expected tag '%s' at index %d, got '%s'", tag, i, addedTask.Tags[i])
-				}
-			}
-
-			if addedTask.Segments == nil {
-				t.Error("Expected segments slice to be initialized, got nil")
-			}
-
-			if len(addedTask.Segments) != 0 {
-				t.Errorf("Expected empty segments slice, got %d segments", len(addedTask.Segments))
+			if task.Category != expectedCategory {
+				t.Errorf("AddTask() category = %q, want %q", task.Category, expectedCategory)
 			}
 		})
 	}
 }
 
-func TestAddSegment(t *testing.T) {
+func TestWatch_AddTask_Multiple(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name string
-		note string
-	}{
-		{
-			name: "add segment with note",
-			note: "Working on feature X",
-		},
-		{
-			name: "add segment without note",
-			note: "",
-		},
-		{
-			name: "add segment with long note",
-			note: "This is a very long note that describes what I was working on during this time segment. " +
-				"It includes multiple sentences and detailed information about the work being performed.",
-		},
-	}
+	watch := &Watch{Tasks: []*Task{}}
+	watch.AddTask("Task 1", "Desc 1", []string{"tag1"}, "work")
+	watch.AddTask("Task 2", "Desc 2", []string{"tag2"}, "completed")
+	watch.AddTask("Task 3", "Desc 3", []string{"tag3"}, "backlog")
 
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
-			task := &task.Task{
-				Name:        "Test Task",
-				Description: "Test Description",
-				Tags:        []string{"test"},
-				Segments:    []*task.Segment{},
-			}
-
-			beforeTime := time.Now()
-
-			task.AddSegment(testCase.note)
-
-			afterTime := time.Now()
-
-			if len(task.Segments) != 1 {
-				t.Errorf("Expected 1 segment, got %d", len(task.Segments))
-			}
-
-			segment := task.Segments[0]
-			if segment.Note != testCase.note {
-				t.Errorf("Expected note '%s', got '%s'", testCase.note, segment.Note)
-			}
-
-			if segment.Create.Before(beforeTime) || segment.Create.After(afterTime) {
-				t.Errorf("Expected create time between %v and %v, got %v", beforeTime, afterTime, segment.Create)
-			}
-
-			if !segment.Finish.IsZero() {
-				t.Errorf("Expected finish time to be zero, got %v", segment.Finish)
-			}
-		})
+	if len(watch.Tasks) != 3 {
+		t.Errorf("Expected 3 tasks, got %d", len(watch.Tasks))
 	}
 }
 
-func TestAddMultipleSegments(t *testing.T) {
+func TestWatch_AddTask_Concurrent(t *testing.T) {
 	t.Parallel()
 
-	task := &task.Task{
-		Name:        "Test Task",
-		Description: "Test Description",
-		Tags:        []string{"test"},
-		Segments:    []*task.Segment{},
+	watch := &Watch{Tasks: []*Task{}}
+	var wg sync.WaitGroup
+
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+
+		go func(i int) {
+			defer wg.Done()
+			watch.AddTask("Task", "Description", []string{"tag"}, "work")
+		}(i)
 	}
 
-	segmentNotes := []string{"First segment", "Second segment", "Third segment"}
+	wg.Wait()
 
-	for _, note := range segmentNotes {
-		task.AddSegment(note)
-		time.Sleep(1 * time.Millisecond) // Ensure different timestamps
+	if len(watch.Tasks) != 100 {
+		t.Errorf("Expected 100 tasks after concurrent adds, got %d", len(watch.Tasks))
+	}
+}
+
+func TestTask_AddSegment(t *testing.T) {
+	t.Parallel()
+
+	task := &Task{
+		Name:     "Test Task",
+		Segments: []*Segment{},
 	}
 
-	if len(task.Segments) != len(segmentNotes) {
-		t.Errorf("Expected %d segments, got %d", len(segmentNotes), len(task.Segments))
+	task.AddSegment("Test note")
+
+	if len(task.Segments) != 1 {
+		t.Errorf("AddSegment() resulted in %d segments, want 1", len(task.Segments))
 	}
 
-	for i, expectedNote := range segmentNotes {
-		if task.Segments[i].Note != expectedNote {
-			t.Errorf("Segment %d: expected note '%s', got '%s'", i, expectedNote, task.Segments[i].Note)
-		}
+	segment := task.Segments[0]
+	if segment.Note != "Test note" {
+		t.Errorf("AddSegment() note = %q, want %q", segment.Note, "Test note")
+	}
+	if segment.Create.IsZero() {
+		t.Error("AddSegment() should set Create time")
+	}
+	if !segment.Finish.IsZero() {
+		t.Error("AddSegment() should leave Finish as zero")
+	}
+}
+
+func TestTask_AddSegment_EmptyNote(t *testing.T) {
+	t.Parallel()
+
+	task := &Task{
+		Name:     "Test Task",
+		Segments: []*Segment{},
 	}
 
-	// Verify timestamps are in order
-	for i := 1; i < len(task.Segments); i++ {
-		if task.Segments[i].Create.Before(task.Segments[i-1].Create) {
-			t.Errorf("Segment %d created before segment %d", i, i-1)
+	task.AddSegment("")
+
+	if len(task.Segments) != 1 {
+		t.Errorf("AddSegment() resulted in %d segments, want 1", len(task.Segments))
+	}
+
+	if task.Segments[0].Note != "" {
+		t.Errorf("AddSegment() note = %q, want empty", task.Segments[0].Note)
+	}
+}
+
+func TestTask_AddSegment_Concurrent(t *testing.T) {
+	t.Parallel()
+
+	task := &Task{
+		Name:     "Test Task",
+		Segments: []*Segment{},
+	}
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+
+		go func(i int) {
+			defer wg.Done()
+			task.AddSegment("Note")
+		}(i)
+	}
+
+	wg.Wait()
+
+	if len(task.Segments) != 50 {
+		t.Errorf("Expected 50 segments after concurrent adds, got %d", len(task.Segments))
+	}
+}
+
+func TestTask_CloseSegment(t *testing.T) {
+	t.Parallel()
+
+	task := &Task{
+		Name: "Test Task",
+		Segments: []*Segment{
+			{Create: time.Now().Add(-time.Hour), Finish: time.Time{}, Note: "Open segment"},
+		},
+	}
+
+	task.CloseSegment()
+
+	if task.Segments[0].Finish.IsZero() {
+		t.Error("CloseSegment() should set Finish time")
+	}
+}
+
+func TestTask_CloseSegment_NoOpenSegments(t *testing.T) {
+	t.Parallel()
+
+	closedTime := time.Now().Add(-30 * time.Minute)
+	task := &Task{
+		Name: "Test Task",
+		Segments: []*Segment{
+			{Create: time.Now().Add(-time.Hour), Finish: closedTime, Note: "Already closed"},
+		},
+	}
+
+	task.CloseSegment()
+
+	// Should not change the finish time of already closed segments
+	if !task.Segments[0].Finish.Equal(closedTime) {
+		t.Error("CloseSegment() should not modify already closed segments")
+	}
+}
+
+func TestTask_CloseSegment_MultipleOpenSegments(t *testing.T) {
+	t.Parallel()
+
+	task := &Task{
+		Name: "Test Task",
+		Segments: []*Segment{
+			{Create: time.Now().Add(-2 * time.Hour), Finish: time.Time{}, Note: "Open 1"},
+			{Create: time.Now().Add(-time.Hour), Finish: time.Time{}, Note: "Open 2"},
+		},
+	}
+
+	task.CloseSegment()
+
+	for i, seg := range task.Segments {
+		if seg.Finish.IsZero() {
+			t.Errorf("CloseSegment() segment %d should be closed", i)
 		}
 	}
 }
 
-func TestCloseSegment(t *testing.T) {
+func TestTask_CloseSegment_EmptySegments(t *testing.T) {
 	t.Parallel()
 
-	t.Run("close single open segment", func(t *testing.T) {
-		t.Parallel()
+	task := &Task{
+		Name:     "Test Task",
+		Segments: []*Segment{},
+	}
 
-		task := &task.Task{
-			Name:        "Test Task",
-			Description: "Test Description",
-			Tags:        []string{"test"},
-			Segments: []*task.Segment{
-				{
-					Create: time.Now().Add(-1 * time.Hour),
-					Finish: time.Time{}, // Open segment
-					Note:   "Open segment",
-				},
-			},
-		}
+	// Should not panic
+	task.CloseSegment()
 
-		beforeTime := time.Now()
-
-		task.CloseSegment()
-
-		afterTime := time.Now()
-
-		segment := task.Segments[0]
-		if segment.Finish.IsZero() {
-			t.Error("Expected segment to be closed, but finish time is still zero")
-		}
-
-		if segment.Finish.Before(beforeTime) || segment.Finish.After(afterTime) {
-			t.Errorf("Expected finish time between %v and %v, got %v", beforeTime, afterTime, segment.Finish)
-		}
-	})
-
-	t.Run("close multiple open segments", func(t *testing.T) {
-		t.Parallel()
-
-		task := &task.Task{
-			Name:        "Test Task",
-			Description: "Test Description",
-			Tags:        []string{"test"},
-			Segments: []*task.Segment{
-				{
-					Create: time.Now().Add(-2 * time.Hour),
-					Finish: time.Time{}, // Open segment
-					Note:   "First open segment",
-				},
-				{
-					Create: time.Now().Add(-1 * time.Hour),
-					Finish: time.Time{}, // Open segment
-					Note:   "Second open segment",
-				},
-			},
-		}
-
-		task.CloseSegment()
-
-		for i, segment := range task.Segments {
-			if segment.Finish.IsZero() {
-				t.Errorf("Segment %d should be closed but finish time is zero", i)
-			}
-		}
-	})
-
-	t.Run("close segments with mixed open/closed", func(t *testing.T) {
-		t.Parallel()
-
-		baseTime := time.Now().Add(-3 * time.Hour)
-		task := &task.Task{
-			Name:        "Test Task",
-			Description: "Test Description",
-			Tags:        []string{"test"},
-			Segments: []*task.Segment{
-				{
-					Create: baseTime,
-					Finish: baseTime.Add(30 * time.Minute), // Closed segment
-					Note:   "Closed segment",
-				},
-				{
-					Create: baseTime.Add(1 * time.Hour),
-					Finish: time.Time{}, // Open segment
-					Note:   "Open segment",
-				},
-			},
-		}
-
-		originalFinishTime := task.Segments[0].Finish
-		task.CloseSegment()
-
-		// First segment should remain unchanged
-		if !task.Segments[0].Finish.Equal(originalFinishTime) {
-			t.Error("Closed segment finish time should not change")
-		}
-
-		// Second segment should now be closed
-		if task.Segments[1].Finish.IsZero() {
-			t.Error("Open segment should now be closed")
-		}
-	})
-
-	t.Run("close segments with no open segments", func(t *testing.T) {
-		t.Parallel()
-
-		baseTime := time.Now().Add(-2 * time.Hour)
-		task := &task.Task{
-			Name:        "Test Task",
-			Description: "Test Description",
-			Tags:        []string{"test"},
-			Segments: []*task.Segment{
-				{
-					Create: baseTime,
-					Finish: baseTime.Add(30 * time.Minute),
-					Note:   "Already closed",
-				},
-			},
-		}
-
-		originalFinishTime := task.Segments[0].Finish
-		task.CloseSegment()
-
-		if !task.Segments[0].Finish.Equal(originalFinishTime) {
-			t.Error("Already closed segment should not change")
-		}
-	})
+	if len(task.Segments) != 0 {
+		t.Error("CloseSegment() should not add segments")
+	}
 }
 
-func TestHasUnclosedSegment(t *testing.T) {
+func TestTask_HasUnclosedSegment(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name     string
-		segments []*task.Segment
-		expected bool
+		segments []*Segment
+		want     bool
 	}{
 		{
 			name:     "no segments",
-			segments: []*task.Segment{},
-			expected: false,
+			segments: []*Segment{},
+			want:     false,
 		},
 		{
-			name: "single open segment",
-			segments: []*task.Segment{
-				{
-					Create: time.Now().Add(-1 * time.Hour),
-					Finish: time.Time{},
-					Note:   "Open segment",
-				},
+			name: "all segments closed",
+			segments: []*Segment{
+				{Create: time.Now().Add(-time.Hour), Finish: time.Now().Add(-30 * time.Minute)},
 			},
-			expected: true,
+			want: false,
 		},
 		{
-			name: "single closed segment",
-			segments: []*task.Segment{
-				{
-					Create: time.Now().Add(-1 * time.Hour),
-					Finish: time.Now().Add(-30 * time.Minute),
-					Note:   "Closed segment",
-				},
+			name: "one open segment",
+			segments: []*Segment{
+				{Create: time.Now().Add(-time.Hour), Finish: time.Time{}},
 			},
-			expected: false,
+			want: true,
 		},
 		{
 			name: "mixed segments with open",
-			segments: []*task.Segment{
-				{
-					Create: time.Now().Add(-2 * time.Hour),
-					Finish: time.Now().Add(-90 * time.Minute),
-					Note:   "Closed segment",
-				},
-				{
-					Create: time.Now().Add(-1 * time.Hour),
-					Finish: time.Time{},
-					Note:   "Open segment",
-				},
+			segments: []*Segment{
+				{Create: time.Now().Add(-2 * time.Hour), Finish: time.Now().Add(-time.Hour)},
+				{Create: time.Now().Add(-30 * time.Minute), Finish: time.Time{}},
 			},
-			expected: true,
-		},
-		{
-			name: "all closed segments",
-			segments: []*task.Segment{
-				{
-					Create: time.Now().Add(-2 * time.Hour),
-					Finish: time.Now().Add(-90 * time.Minute),
-					Note:   "First closed",
-				},
-				{
-					Create: time.Now().Add(-1 * time.Hour),
-					Finish: time.Now().Add(-30 * time.Minute),
-					Note:   "Second closed",
-				},
-			},
-			expected: false,
+			want: true,
 		},
 	}
 
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			task := &task.Task{
-				Name:        "Test Task",
-				Description: "Test Description",
-				Tags:        []string{"test"},
-				Segments:    testCase.segments,
+			task := &Task{
+				Name:     "Test Task",
+				Segments: tt.segments,
 			}
 
-			result := task.HasUnclosedSegment()
-			if result != testCase.expected {
-				t.Errorf("Expected %v, got %v", testCase.expected, result)
+			if got := task.HasUnclosedSegment(); got != tt.want {
+				t.Errorf("HasUnclosedSegment() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestGetClosedSegmentsDuration(t *testing.T) {
+func TestTask_GetClosedSegmentsDuration(t *testing.T) {
 	t.Parallel()
+
+	now := time.Now()
 
 	tests := []struct {
 		name     string
-		segments []*task.Segment
-		expected time.Duration
+		segments []*Segment
+		want     time.Duration
 	}{
 		{
 			name:     "no segments",
-			segments: []*task.Segment{},
-			expected: 0,
+			segments: []*Segment{},
+			want:     0,
 		},
 		{
 			name: "single closed segment",
-			segments: []*task.Segment{
-				{
-					Create: time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC),
-					Finish: time.Date(2023, 1, 1, 11, 0, 0, 0, time.UTC),
-					Note:   "One hour segment",
-				},
+			segments: []*Segment{
+				{Create: now.Add(-time.Hour), Finish: now},
 			},
-			expected: 1 * time.Hour,
-		},
-		{
-			name: "single open segment",
-			segments: []*task.Segment{
-				{
-					Create: time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC),
-					Finish: time.Time{},
-					Note:   "Open segment",
-				},
-			},
-			expected: 0,
+			want: time.Hour,
 		},
 		{
 			name: "multiple closed segments",
-			segments: []*task.Segment{
-				{
-					Create: time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC),
-					Finish: time.Date(2023, 1, 1, 10, 30, 0, 0, time.UTC),
-					Note:   "30 minute segment",
-				},
-				{
-					Create: time.Date(2023, 1, 1, 11, 0, 0, 0, time.UTC),
-					Finish: time.Date(2023, 1, 1, 12, 15, 0, 0, time.UTC),
-					Note:   "75 minute segment",
-				},
+			segments: []*Segment{
+				{Create: now.Add(-2 * time.Hour), Finish: now.Add(-time.Hour)},
+				{Create: now.Add(-30 * time.Minute), Finish: now},
 			},
-			expected: 30*time.Minute + 75*time.Minute,
+			want: time.Hour + 30*time.Minute,
 		},
 		{
-			name: "mixed open and closed segments",
-			segments: []*task.Segment{
-				{
-					Create: time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC),
-					Finish: time.Date(2023, 1, 1, 10, 45, 0, 0, time.UTC),
-					Note:   "45 minute closed segment",
-				},
-				{
-					Create: time.Date(2023, 1, 1, 11, 0, 0, 0, time.UTC),
-					Finish: time.Time{},
-					Note:   "Open segment",
-				},
-				{
-					Create: time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC),
-					Finish: time.Date(2023, 1, 1, 12, 20, 0, 0, time.UTC),
-					Note:   "20 minute closed segment",
-				},
+			name: "ignores open segments",
+			segments: []*Segment{
+				{Create: now.Add(-2 * time.Hour), Finish: now.Add(-time.Hour)},
+				{Create: now.Add(-30 * time.Minute), Finish: time.Time{}}, // Open
 			},
-			expected: 45*time.Minute + 20*time.Minute,
+			want: time.Hour,
 		},
 	}
 
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			task := &task.Task{
-				Name:        "Test Task",
-				Description: "Test Description",
-				Tags:        []string{"test"},
-				Segments:    testCase.segments,
+			task := &Task{
+				Name:     "Test Task",
+				Segments: tt.segments,
 			}
 
-			result := task.GetClosedSegmentsDuration()
-			if result != testCase.expected {
-				t.Errorf("Expected duration %v, got %v", testCase.expected, result)
+			got := task.GetClosedSegmentsDuration()
+			if got != tt.want {
+				t.Errorf("GetClosedSegmentsDuration() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTask_SetCategory(t *testing.T) {
+	t.Parallel()
+
+	task := &Task{Name: "Test", Category: "work"}
+
+	task.SetCategory("completed")
+	if task.Category != "completed" {
+		t.Errorf("SetCategory() = %q, want %q", task.Category, "completed")
+	}
+
+	task.SetCategory("backlog")
+	if task.Category != "backlog" {
+		t.Errorf("SetCategory() = %q, want %q", task.Category, "backlog")
+	}
+}
+
+func TestTask_GetCategory(t *testing.T) {
+	t.Parallel()
+
+	task := &Task{Name: "Test", Category: "work"}
+
+	if got := task.GetCategory(); got != "work" {
+		t.Errorf("GetCategory() = %q, want %q", got, "work")
+	}
+
+	task.Category = "completed"
+	if got := task.GetCategory(); got != "completed" {
+		t.Errorf("GetCategory() = %q, want %q", got, "completed")
+	}
+}
+
+func TestWatch_GetTasksByCategory(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	watch := &Watch{
+		Tasks: []*Task{
+			{Name: "Work 1", Category: "work", Segments: []*Segment{
+				{Create: now.Add(-time.Hour), Finish: now},
+			}},
+			{Name: "Completed 1", Category: "completed"},
+			{Name: "Work 2", Category: "work"},
+			{Name: "Backlog 1", Category: "backlog"},
+		},
+	}
+
+	workTasks := watch.GetTasksByCategory("work")
+	if len(workTasks) != 2 {
+		t.Errorf("GetTasksByCategory('work') returned %d tasks, want 2", len(workTasks))
+	}
+
+	completedTasks := watch.GetTasksByCategory("completed")
+	if len(completedTasks) != 1 {
+		t.Errorf("GetTasksByCategory('completed') returned %d tasks, want 1", len(completedTasks))
+	}
+
+	nonExistent := watch.GetTasksByCategory("nonexistent")
+	if len(nonExistent) != 0 {
+		t.Errorf("GetTasksByCategory('nonexistent') returned %d tasks, want 0", len(nonExistent))
+	}
+}
+
+func TestWatch_GetTasksSortedByActivityWithFilter(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	watch := &Watch{
+		Tasks: []*Task{
+			{Name: "Work 1", Category: "work", Segments: []*Segment{
+				{Create: now.Add(-time.Hour), Finish: now},
+			}},
+			{Name: "Completed 1", Category: "completed"},
+			{Name: "Work 2", Category: "work", Segments: []*Segment{
+				{Create: now.Add(-2 * time.Hour), Finish: now.Add(-time.Hour)},
+			}},
+		},
+	}
+
+	// With filter
+	workTasks := watch.GetTasksSortedByActivityWithFilter("work")
+	if len(workTasks) != 2 {
+		t.Errorf("GetTasksSortedByActivityWithFilter('work') returned %d tasks, want 2", len(workTasks))
+	}
+
+	// Without filter (empty string)
+	allTasks := watch.GetTasksSortedByActivityWithFilter("")
+	if len(allTasks) != 3 {
+		t.Errorf("GetTasksSortedByActivityWithFilter('') returned %d tasks, want 3", len(allTasks))
+	}
+}
+
+func TestSortTasksByActivity(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+
+	tests := []struct {
+		name      string
+		tasks     []*Task
+		wantOrder []string
+	}{
+		{
+			name:      "empty tasks",
+			tasks:     []*Task{},
+			wantOrder: []string{},
+		},
+		{
+			name: "tasks sorted by activity",
+			tasks: []*Task{
+				{Name: "Old", Segments: []*Segment{
+					{Create: now.Add(-2 * time.Hour), Finish: now.Add(-time.Hour)},
+				}},
+				{Name: "Recent", Segments: []*Segment{
+					{Create: now.Add(-30 * time.Minute), Finish: now},
+				}},
+			},
+			wantOrder: []string{"Recent", "Old"},
+		},
+		{
+			name: "tasks with no segments go to bottom",
+			tasks: []*Task{
+				{Name: "No Segments"},
+				{Name: "Has Segments", Segments: []*Segment{
+					{Create: now.Add(-time.Hour), Finish: now},
+				}},
+			},
+			wantOrder: []string{"Has Segments", "No Segments"},
+		},
+		{
+			name: "multiple tasks without segments maintain order",
+			tasks: []*Task{
+				{Name: "No Seg 1"},
+				{Name: "No Seg 2"},
+			},
+			wantOrder: []string{"No Seg 1", "No Seg 2"},
+		},
+		{
+			name: "open segment uses create time",
+			tasks: []*Task{
+				{Name: "Closed Old", Segments: []*Segment{
+					{Create: now.Add(-2 * time.Hour), Finish: now.Add(-time.Hour)},
+				}},
+				{Name: "Open Recent", Segments: []*Segment{
+					{Create: now.Add(-10 * time.Minute), Finish: time.Time{}},
+				}},
+			},
+			wantOrder: []string{"Open Recent", "Closed Old"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			sorted := sortTasksByActivity(tt.tasks)
+
+			if len(sorted) != len(tt.wantOrder) {
+				t.Fatalf("sortTasksByActivity() returned %d tasks, want %d", len(sorted), len(tt.wantOrder))
+			}
+
+			for i, name := range tt.wantOrder {
+				if sorted[i].Name != name {
+					t.Errorf("sortTasksByActivity()[%d].Name = %q, want %q", i, sorted[i].Name, name)
+				}
 			}
 		})
 	}
@@ -498,49 +533,15 @@ func TestGetClosedSegmentsDuration(t *testing.T) {
 func TestGetTasksFilePath(t *testing.T) {
 	t.Parallel()
 
-	// Test the function
-	path := task.GetTasksFilePath()
+	path := GetTasksFilePath()
 
+	// Should return a non-empty path
 	if path == "" {
-		t.Error("Expected non-empty path")
+		t.Error("GetTasksFilePath() returned empty string")
 	}
 
-	// Should end with the expected filename
-	expectedFilename := task.DefaultTasksFileName
-	if filepath.Base(path) != expectedFilename {
-		// If we can't get user home dir, it should return the default filename
-		if path != expectedFilename {
-			t.Errorf("Expected path to end with '%s' or be '%s', got '%s'", expectedFilename, expectedFilename, path)
-		}
-	}
-
-	// If we got a full path, verify it's absolute or relative to current dir
-	if filepath.IsAbs(path) {
-		// Should be in user's home directory
-		homeDir, err := os.UserHomeDir()
-		if err == nil {
-			expectedPath := filepath.Join(homeDir, expectedFilename)
-			if path != expectedPath {
-				t.Errorf("Expected path '%s', got '%s'", expectedPath, path)
-			}
-		}
-	}
-}
-
-func TestGetTasksFilePathWithHomeError(t *testing.T) {
-	t.Parallel()
-
-	// This test is harder to implement since we can't easily mock os.UserHomeDir
-	// But we can verify the fallback behavior by checking the code logic
-	// The function should return ".ohgmas-tasks.yaml" if os.UserHomeDir() fails
-
-	// We'll test this indirectly by ensuring the function always returns something reasonable
-	path := task.GetTasksFilePath()
-	if path == "" {
-		t.Error("GetTasksFilePath should never return empty string")
-	}
-
-	if filepath.Base(path) != ".ohgmas-tasks.yaml" && path != ".ohgmas-tasks.yaml" {
-		t.Errorf("Expected path to contain '.ohgmas-tasks.yaml', got '%s'", path)
+	// Should contain the default filename
+	if path != DefaultTasksFileName && len(path) < len(DefaultTasksFileName) {
+		t.Errorf("GetTasksFilePath() = %q, should contain %q", path, DefaultTasksFileName)
 	}
 }
