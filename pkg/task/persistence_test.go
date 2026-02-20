@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TestWatch_SaveAndLoadTasksFromFile(t *testing.T) {
+func TestWatch_SaveAndLoadTasksFromFile(t *testing.T) { //nolint:cyclop // integration test verifies all fields
 	t.Parallel()
 
 	// Create a temporary file
@@ -45,7 +45,8 @@ func TestWatch_SaveAndLoadTasksFromFile(t *testing.T) {
 	}
 
 	// Verify file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+	_, err = os.Stat(filePath)
+	if os.IsNotExist(err) {
 		t.Fatal("SaveTasksToFile() did not create file")
 	}
 
@@ -66,6 +67,7 @@ func TestWatch_SaveAndLoadTasksFromFile(t *testing.T) {
 	if loadedWatch.Tasks[0].Name != "Task 1" {
 		t.Errorf("Task name = %q, want %q", loadedWatch.Tasks[0].Name, "Task 1")
 	}
+
 	if loadedWatch.Tasks[0].Description != "Description 1" {
 		t.Errorf("Task description = %q, want %q", loadedWatch.Tasks[0].Description, "Description 1")
 	}
@@ -87,6 +89,7 @@ func TestWatch_SaveAndLoadTasksFromFile(t *testing.T) {
 	if seg.Note != "Note 1" {
 		t.Errorf("Segment note = %q, want %q", seg.Note, "Note 1")
 	}
+
 	if !seg.Create.Equal(baseTime) {
 		t.Errorf("Segment create = %v, want %v", seg.Create, baseTime)
 	}
@@ -264,11 +267,12 @@ func TestWatch_LoadTasksFromFile_LargeTasks(t *testing.T) {
 
 	baseTime := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 
-	// Create many tasks with many segments
+	// Create many tasks with many segments.
 	var tasks []*Task
-	for i := 0; i < 100; i++ {
+
+	for range 100 {
 		var segments []*Segment
-		for j := 0; j < 50; j++ {
+		for j := range 50 {
 			segments = append(segments, &Segment{
 				Create: baseTime.Add(time.Duration(j) * time.Hour),
 				Finish: baseTime.Add(time.Duration(j)*time.Hour + 30*time.Minute),
@@ -380,6 +384,7 @@ func TestWatch_RoundTrip_PreservesAllFields(t *testing.T) {
 	if len(task.Tags) != 3 {
 		t.Errorf("Tags count = %d, want 3", len(task.Tags))
 	}
+
 	if len(task.Segments) != 3 {
 		t.Errorf("Segments count = %d, want 3", len(task.Segments))
 	}

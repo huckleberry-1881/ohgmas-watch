@@ -19,7 +19,7 @@ func (w *Watch) AddTask(name string, description string, tags []string, category
 
 	// Default to "work" if no category specified
 	if category == "" {
-		category = "work"
+		category = "work" //nolint:goconst // simple default, not worth a constant
 	}
 
 	newTask := Task{

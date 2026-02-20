@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,13 +21,13 @@ func TestGetTimeFilters(t *testing.T) {
 	customFinish := time.Date(2024, 6, 30, 23, 59, 59, 0, time.UTC)
 
 	tests := []struct {
-		name         string
-		start        *time.Time
-		finish       *time.Time
-		earliest     time.Time
-		latest       time.Time
-		wantStart    time.Time
-		wantFinish   time.Time
+		name       string
+		start      *time.Time
+		finish     *time.Time
+		earliest   time.Time
+		latest     time.Time
+		wantStart  time.Time
+		wantFinish time.Time
 	}{
 		{
 			name:       "nil start and finish uses defaults",
@@ -104,13 +105,13 @@ func TestGetWeeklySummaries(t *testing.T) {
 
 	weekStarts := []time.Time{weekStart}
 
-	// Test without tasks
+	// Test without tasks.
 	summaries := getWeeklySummaries(watch, weekStarts, false)
 	if len(summaries) == 0 {
 		t.Error("getWeeklySummaries() returned empty summaries")
 	}
 
-	// Test with tasks
+	// Test with tasks.
 	summariesWithTasks := getWeeklySummaries(watch, weekStarts, true)
 	if len(summariesWithTasks) == 0 {
 		t.Error("getWeeklySummaries() with tasks returned empty summaries")
@@ -126,7 +127,7 @@ func TestLoadWatchForSummary(t *testing.T) {
 		tmpDir := t.TempDir()
 		filePath := filepath.Join(tmpDir, "test-tasks.yaml")
 
-		// Create a valid watch and save it
+		// Create a valid watch and save it.
 		originalWatch := &task.Watch{
 			Tasks: []*task.Task{
 				{Name: "Test Task", Category: "work"},
@@ -138,7 +139,7 @@ func TestLoadWatchForSummary(t *testing.T) {
 			t.Fatalf("Failed to save test file: %v", err)
 		}
 
-		// Load it back
+		// Load it back.
 		watch, err := loadWatchForSummary(filePath)
 		if err != nil {
 			t.Errorf("loadWatchForSummary() error = %v", err)
@@ -155,7 +156,7 @@ func TestLoadWatchForSummary(t *testing.T) {
 		tmpDir := t.TempDir()
 		filePath := filepath.Join(tmpDir, "invalid.yaml")
 
-		// Write invalid YAML
+		// Write invalid YAML.
 		err := os.WriteFile(filePath, []byte("invalid: yaml: ["), 0600)
 		if err != nil {
 			t.Fatalf("Failed to write test file: %v", err)
@@ -179,7 +180,7 @@ func TestLoadWatchForSummary(t *testing.T) {
 		}
 
 		if watch == nil {
-			t.Error("loadWatchForSummary() returned nil watch")
+			t.Fatal("loadWatchForSummary() returned nil watch")
 		}
 
 		if len(watch.Tasks) != 0 {
@@ -188,8 +189,30 @@ func TestLoadWatchForSummary(t *testing.T) {
 	})
 }
 
+// captureStdout captures stdout output from a function call.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+
+	oldStdout := os.Stdout
+
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	fn()
+
+	w.Close() //nolint:errcheck // test helper, pipe close won't fail
+
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+
+	_, _ = io.Copy(&buf, r)
+
+	return buf.String()
+}
+
 func TestPrintWeeklySummaries(t *testing.T) { //nolint:paralleltest // stdout capture
-	// Cannot run in parallel due to stdout capture
+	// Cannot run in parallel due to stdout capture.
 	weekStart := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 
 	summaries := []task.WeeklySummary{
@@ -212,34 +235,23 @@ func TestPrintWeeklySummaries(t *testing.T) { //nolint:paralleltest // stdout ca
 		},
 	}
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	output := captureStdout(t, func() {
+		printWeeklySummaries(summaries, false)
+	})
 
-	printWeeklySummaries(summaries, false)
-
-	w.Close()
-
-	os.Stdout = oldStdout
-
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
-
-	// Verify output contains expected content
+	// Verify output contains expected content.
 	if output == "" {
 		t.Error("printWeeklySummaries() produced no output")
 	}
 
 	expectedContent := "Week starting 01/15/2024"
-	if !bytes.Contains([]byte(output), []byte(expectedContent)) {
+	if !strings.Contains(output, expectedContent) {
 		t.Errorf("printWeeklySummaries() output missing expected content %q", expectedContent)
 	}
 }
 
 func TestPrintWeeklySummaries_WithTasks(t *testing.T) { //nolint:paralleltest // stdout capture
-	// Cannot run in parallel due to stdout capture
+	// Cannot run in parallel due to stdout capture.
 	weekStart := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 
 	summaries := []task.WeeklySummary{
@@ -262,29 +274,18 @@ func TestPrintWeeklySummaries_WithTasks(t *testing.T) { //nolint:paralleltest //
 		},
 	}
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	output := captureStdout(t, func() {
+		printWeeklySummaries(summaries, true)
+	})
 
-	printWeeklySummaries(summaries, true)
-
-	w.Close()
-
-	os.Stdout = oldStdout
-
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
-
-	// Verify output contains task details
-	if !bytes.Contains([]byte(output), []byte("Feature Implementation")) {
+	// Verify output contains task details.
+	if !strings.Contains(output, "Feature Implementation") {
 		t.Error("printWeeklySummaries() with tasks should include task names")
 	}
 }
 
 func TestPrintTasksForTagset(t *testing.T) { //nolint:paralleltest // stdout capture
-	// Cannot run in parallel due to stdout capture
+	// Cannot run in parallel due to stdout capture.
 	weekStart := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 
 	tasks := []*task.Task{
@@ -302,42 +303,31 @@ func TestPrintTasksForTagset(t *testing.T) { //nolint:paralleltest // stdout cap
 		},
 	}
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	output := captureStdout(t, func() {
+		printTasksForTagset(weekStart, tasks)
+	})
 
-	printTasksForTagset(weekStart, tasks)
-
-	w.Close()
-
-	os.Stdout = oldStdout
-
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
-
-	// Verify output contains both tasks
-	if !bytes.Contains([]byte(output), []byte("Task A")) {
+	// Verify output contains both tasks.
+	if !strings.Contains(output, "Task A") {
 		t.Error("printTasksForTagset() output should contain Task A")
 	}
 
-	if !bytes.Contains([]byte(output), []byte("Task B")) {
+	if !strings.Contains(output, "Task B") {
 		t.Error("printTasksForTagset() output should contain Task B")
 	}
 
-	// Verify duration format
-	if !bytes.Contains([]byte(output), []byte("[1h00m]")) {
+	// Verify duration format.
+	if !strings.Contains(output, "[1h00m]") {
 		t.Error("printTasksForTagset() output should contain formatted duration for Task A")
 	}
 }
 
 func TestGenerateSummary_NoSegments(t *testing.T) { //nolint:paralleltest // stdout capture
-	// Cannot run in parallel due to stdout capture
+	// Cannot run in parallel due to stdout capture.
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "empty-tasks.yaml")
 
-	// Create an empty watch
+	// Create an empty watch.
 	watch := &task.Watch{Tasks: []*task.Task{}}
 
 	err := watch.SaveTasksToFile(filePath)
@@ -345,42 +335,35 @@ func TestGenerateSummary_NoSegments(t *testing.T) { //nolint:paralleltest // std
 		t.Fatalf("Failed to save test file: %v", err)
 	}
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	var genErr error
 
-	err = generateSummary(false, nil, nil, filePath)
+	output := captureStdout(t, func() {
+		genErr = generateSummary(false, nil, nil, filePath)
+	})
 
-	w.Close()
-
-	os.Stdout = oldStdout
-
-	if err != nil {
-		t.Errorf("generateSummary() error = %v", err)
+	if genErr != nil {
+		t.Errorf("generateSummary() error = %v", genErr)
 	}
 
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
-
-	if !bytes.Contains([]byte(output), []byte("No segments found")) {
+	if !strings.Contains(output, "No segments found") {
 		t.Error("generateSummary() should print 'No segments found' for empty tasks")
 	}
 }
 
-func TestGenerateSummary_WithSegments(t *testing.T) { //nolint:paralleltest // stdout capture
-	// Cannot run in parallel due to stdout capture
+// generateSummaryTestHelper creates a watch with a single task, saves it, and runs generateSummary.
+func generateSummaryTestHelper(t *testing.T, taskName, tag string, includeTasks bool) string {
+	t.Helper()
+
 	tmpDir := t.TempDir()
-	filePath := filepath.Join(tmpDir, "tasks-with-segments.yaml")
+	filePath := filepath.Join(tmpDir, "tasks.yaml")
 
 	baseTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
 
 	watch := &task.Watch{
 		Tasks: []*task.Task{
 			{
-				Name:     "Test Task",
-				Tags:     []string{"feature"},
+				Name:     taskName,
+				Tags:     []string{tag},
 				Category: "work",
 				Segments: []*task.Segment{
 					{Create: baseTime, Finish: baseTime.Add(2 * time.Hour)},
@@ -394,32 +377,29 @@ func TestGenerateSummary_WithSegments(t *testing.T) { //nolint:paralleltest // s
 		t.Fatalf("Failed to save test file: %v", err)
 	}
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	var genErr error
 
-	err = generateSummary(false, nil, nil, filePath)
+	output := captureStdout(t, func() {
+		genErr = generateSummary(includeTasks, nil, nil, filePath)
+	})
 
-	w.Close()
-
-	os.Stdout = oldStdout
-
-	if err != nil {
-		t.Errorf("generateSummary() error = %v", err)
+	if genErr != nil {
+		t.Errorf("generateSummary() error = %v", genErr)
 	}
 
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
+	return output
+}
 
-	if !bytes.Contains([]byte(output), []byte("Week starting")) {
+func TestGenerateSummary_WithSegments(t *testing.T) { //nolint:paralleltest // stdout capture
+	output := generateSummaryTestHelper(t, "Test Task", "feature", false)
+
+	if !strings.Contains(output, "Week starting") {
 		t.Error("generateSummary() should print week information")
 	}
 }
 
 func TestGenerateSummary_WithTimeFilter(t *testing.T) { //nolint:paralleltest // stdout capture
-	// Cannot run in parallel due to stdout capture
+	// Cannot run in parallel due to stdout capture.
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "tasks-filtered.yaml")
 
@@ -452,31 +432,22 @@ func TestGenerateSummary_WithTimeFilter(t *testing.T) { //nolint:paralleltest //
 		t.Fatalf("Failed to save test file: %v", err)
 	}
 
-	// Filter to only include January
+	// Filter to only include January.
 	filterStart := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	filterFinish := time.Date(2024, 1, 31, 23, 59, 59, 0, time.UTC)
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	var genErr error
 
-	err = generateSummary(false, &filterStart, &filterFinish, filePath)
+	output := captureStdout(t, func() {
+		genErr = generateSummary(false, &filterStart, &filterFinish, filePath)
+	})
 
-	w.Close()
-
-	os.Stdout = oldStdout
-
-	if err != nil {
-		t.Errorf("generateSummary() error = %v", err)
+	if genErr != nil {
+		t.Errorf("generateSummary() error = %v", genErr)
 	}
 
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
-
-	// Should include January week
-	if !bytes.Contains([]byte(output), []byte("01/15/2024")) {
+	// Should include January week.
+	if !strings.Contains(output, "01/15/2024") {
 		t.Error("generateSummary() with filter should include January week")
 	}
 }
@@ -487,7 +458,7 @@ func TestGenerateSummary_InvalidFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "invalid.yaml")
 
-	// Write invalid YAML
+	// Write invalid YAML.
 	err := os.WriteFile(filePath, []byte("invalid: yaml: ["), 0600)
 	if err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
@@ -500,50 +471,9 @@ func TestGenerateSummary_InvalidFile(t *testing.T) {
 }
 
 func TestGenerateSummary_WithTasks(t *testing.T) { //nolint:paralleltest // stdout capture
-	// Cannot run in parallel due to stdout capture
-	tmpDir := t.TempDir()
-	filePath := filepath.Join(tmpDir, "tasks-with-details.yaml")
+	output := generateSummaryTestHelper(t, "Detailed Task", "feature", true)
 
-	baseTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
-
-	watch := &task.Watch{
-		Tasks: []*task.Task{
-			{
-				Name:     "Detailed Task",
-				Tags:     []string{"feature"},
-				Category: "work",
-				Segments: []*task.Segment{
-					{Create: baseTime, Finish: baseTime.Add(2 * time.Hour)},
-				},
-			},
-		},
-	}
-
-	err := watch.SaveTasksToFile(filePath)
-	if err != nil {
-		t.Fatalf("Failed to save test file: %v", err)
-	}
-
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	err = generateSummary(true, nil, nil, filePath)
-
-	w.Close()
-
-	os.Stdout = oldStdout
-
-	if err != nil {
-		t.Errorf("generateSummary() error = %v", err)
-	}
-
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
-
-	if !bytes.Contains([]byte(output), []byte("Detailed Task")) {
+	if !strings.Contains(output, "Detailed Task") {
 		t.Error("generateSummary() with includeTasks should include task names")
 	}
 }

@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+const (
+	categoryWork      = "work"
+	categoryCompleted = "completed"
+	categoryBacklog   = "backlog"
+)
+
 func TestWatch_AddTask(t *testing.T) {
 	t.Parallel()
 
@@ -22,7 +28,7 @@ func TestWatch_AddTask(t *testing.T) {
 			taskName:    "Test Task",
 			description: "A test description",
 			tags:        []string{"tag1", "tag2"},
-			category:    "work",
+			category:    categoryWork,
 			wantLen:     1,
 		},
 		{
@@ -38,7 +44,7 @@ func TestWatch_AddTask(t *testing.T) {
 			taskName:    "Nil Tags Task",
 			description: "",
 			tags:        nil,
-			category:    "backlog",
+			category:    categoryBacklog,
 			wantLen:     1,
 		},
 	}
@@ -58,14 +64,16 @@ func TestWatch_AddTask(t *testing.T) {
 			if task.Name != tt.taskName {
 				t.Errorf("AddTask() name = %q, want %q", task.Name, tt.taskName)
 			}
+
 			if task.Description != tt.description {
 				t.Errorf("AddTask() description = %q, want %q", task.Description, tt.description)
 			}
 
 			expectedCategory := tt.category
 			if expectedCategory == "" {
-				expectedCategory = "work"
+				expectedCategory = categoryWork
 			}
+
 			if task.Category != expectedCategory {
 				t.Errorf("AddTask() category = %q, want %q", task.Category, expectedCategory)
 			}
@@ -77,9 +85,9 @@ func TestWatch_AddTask_Multiple(t *testing.T) {
 	t.Parallel()
 
 	watch := &Watch{Tasks: []*Task{}}
-	watch.AddTask("Task 1", "Desc 1", []string{"tag1"}, "work")
-	watch.AddTask("Task 2", "Desc 2", []string{"tag2"}, "completed")
-	watch.AddTask("Task 3", "Desc 3", []string{"tag3"}, "backlog")
+	watch.AddTask("Task 1", "Desc 1", []string{"tag1"}, categoryWork)
+	watch.AddTask("Task 2", "Desc 2", []string{"tag2"}, categoryCompleted)
+	watch.AddTask("Task 3", "Desc 3", []string{"tag3"}, categoryBacklog)
 
 	if len(watch.Tasks) != 3 {
 		t.Errorf("Expected 3 tasks, got %d", len(watch.Tasks))
@@ -93,14 +101,10 @@ func TestWatch_AddTask_Concurrent(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-
-			watch.AddTask("Task", "Description", []string{"tag"}, "work")
-		}()
+	for range 100 {
+		wg.Go(func() {
+			watch.AddTask("Task", "Description", []string{"tag"}, categoryWork)
+		})
 	}
 
 	wg.Wait()
@@ -128,9 +132,11 @@ func TestTask_AddSegment(t *testing.T) {
 	if segment.Note != "Test note" {
 		t.Errorf("AddSegment() note = %q, want %q", segment.Note, "Test note")
 	}
+
 	if segment.Create.IsZero() {
 		t.Error("AddSegment() should set Create time")
 	}
+
 	if !segment.Finish.IsZero() {
 		t.Error("AddSegment() should leave Finish as zero")
 	}
@@ -165,14 +171,10 @@ func TestTask_AddSegment_Concurrent(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	for i := 0; i < 50; i++ {
-		wg.Add(1)
-
-		go func(i int) {
-			defer wg.Done()
-
+	for range 50 {
+		wg.Go(func() {
 			task.AddSegment("Note")
-		}(i)
+		})
 	}
 
 	wg.Wait()
@@ -367,31 +369,33 @@ func TestTask_GetClosedSegmentsDuration(t *testing.T) {
 func TestTask_SetCategory(t *testing.T) {
 	t.Parallel()
 
-	task := &Task{Name: "Test", Category: "work"}
+	task := &Task{Name: "Test", Category: categoryWork}
 
-	task.SetCategory("completed")
-	if task.Category != "completed" {
-		t.Errorf("SetCategory() = %q, want %q", task.Category, "completed")
+	task.SetCategory(categoryCompleted)
+
+	if task.Category != categoryCompleted {
+		t.Errorf("SetCategory() = %q, want %q", task.Category, categoryCompleted)
 	}
 
-	task.SetCategory("backlog")
-	if task.Category != "backlog" {
-		t.Errorf("SetCategory() = %q, want %q", task.Category, "backlog")
+	task.SetCategory(categoryBacklog)
+
+	if task.Category != categoryBacklog {
+		t.Errorf("SetCategory() = %q, want %q", task.Category, categoryBacklog)
 	}
 }
 
 func TestTask_GetCategory(t *testing.T) {
 	t.Parallel()
 
-	task := &Task{Name: "Test", Category: "work"}
+	task := &Task{Name: "Test", Category: categoryWork}
 
-	if got := task.GetCategory(); got != "work" {
-		t.Errorf("GetCategory() = %q, want %q", got, "work")
+	if got := task.GetCategory(); got != categoryWork {
+		t.Errorf("GetCategory() = %q, want %q", got, categoryWork)
 	}
 
-	task.Category = "completed"
-	if got := task.GetCategory(); got != "completed" {
-		t.Errorf("GetCategory() = %q, want %q", got, "completed")
+	task.Category = categoryCompleted
+	if got := task.GetCategory(); got != categoryCompleted {
+		t.Errorf("GetCategory() = %q, want %q", got, categoryCompleted)
 	}
 }
 
@@ -401,21 +405,21 @@ func TestWatch_GetTasksByCategory(t *testing.T) {
 	now := time.Now()
 	watch := &Watch{
 		Tasks: []*Task{
-			{Name: "Work 1", Category: "work", Segments: []*Segment{
+			{Name: "Work 1", Category: categoryWork, Segments: []*Segment{
 				{Create: now.Add(-time.Hour), Finish: now},
 			}},
-			{Name: "Completed 1", Category: "completed"},
-			{Name: "Work 2", Category: "work"},
-			{Name: "Backlog 1", Category: "backlog"},
+			{Name: "Completed 1", Category: categoryCompleted},
+			{Name: "Work 2", Category: categoryWork},
+			{Name: "Backlog 1", Category: categoryBacklog},
 		},
 	}
 
-	workTasks := watch.GetTasksByCategory("work")
+	workTasks := watch.GetTasksByCategory(categoryWork)
 	if len(workTasks) != 2 {
 		t.Errorf("GetTasksByCategory('work') returned %d tasks, want 2", len(workTasks))
 	}
 
-	completedTasks := watch.GetTasksByCategory("completed")
+	completedTasks := watch.GetTasksByCategory(categoryCompleted)
 	if len(completedTasks) != 1 {
 		t.Errorf("GetTasksByCategory('completed') returned %d tasks, want 1", len(completedTasks))
 	}
@@ -432,18 +436,18 @@ func TestWatch_GetTasksSortedByActivityWithFilter(t *testing.T) {
 	now := time.Now()
 	watch := &Watch{
 		Tasks: []*Task{
-			{Name: "Work 1", Category: "work", Segments: []*Segment{
+			{Name: "Work 1", Category: categoryWork, Segments: []*Segment{
 				{Create: now.Add(-time.Hour), Finish: now},
 			}},
-			{Name: "Completed 1", Category: "completed"},
-			{Name: "Work 2", Category: "work", Segments: []*Segment{
+			{Name: "Completed 1", Category: categoryCompleted},
+			{Name: "Work 2", Category: categoryWork, Segments: []*Segment{
 				{Create: now.Add(-2 * time.Hour), Finish: now.Add(-time.Hour)},
 			}},
 		},
 	}
 
 	// With filter
-	workTasks := watch.GetTasksSortedByActivityWithFilter("work")
+	workTasks := watch.GetTasksSortedByActivityWithFilter(categoryWork)
 	if len(workTasks) != 2 {
 		t.Errorf("GetTasksSortedByActivityWithFilter('work') returned %d tasks, want 2", len(workTasks))
 	}

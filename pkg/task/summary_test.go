@@ -194,8 +194,8 @@ func TestWatch_GetSummaryByTagset(t *testing.T) {
 					},
 				},
 			},
-			start:     timePtr(baseTime.Add(-time.Hour)),
-			finish:    timePtr(baseTime.Add(2 * time.Hour)),
+			start:     ptr(baseTime.Add(-time.Hour)),
+			finish:    ptr(baseTime.Add(2 * time.Hour)),
 			wantLen:   1,
 			wantFirst: "work",
 		},
@@ -215,8 +215,8 @@ func TestWatch_GetSummaryByTagset(t *testing.T) {
 					},
 				},
 			},
-			start:     timePtr(baseTime.Add(-time.Hour)),
-			finish:    timePtr(baseTime.Add(2 * time.Hour)),
+			start:     ptr(baseTime.Add(-time.Hour)),
+			finish:    ptr(baseTime.Add(2 * time.Hour)),
 			wantLen:   1,
 			wantFirst: "full",
 		},
@@ -306,9 +306,11 @@ func TestWatch_GetTasksSortedByActivity(t *testing.T) {
 	if got[0].Name != "Recent" {
 		t.Errorf("First task should be 'Recent', got %q", got[0].Name)
 	}
+
 	if got[1].Name != "Old" {
 		t.Errorf("Second task should be 'Old', got %q", got[1].Name)
 	}
+
 	if got[2].Name != "No Activity" {
 		t.Errorf("Third task should be 'No Activity', got %q", got[2].Name)
 	}
@@ -507,6 +509,7 @@ func TestWatch_GetEarliestAndLatestSegmentTimes(t *testing.T) {
 			if !gotEarliest.Equal(tt.wantEarliest) {
 				t.Errorf("GetEarliestAndLatestSegmentTimes() earliest = %v, want %v", gotEarliest, tt.wantEarliest)
 			}
+
 			if !gotLatest.Equal(tt.wantLatest) {
 				t.Errorf("GetEarliestAndLatestSegmentTimes() latest = %v, want %v", gotLatest, tt.wantLatest)
 			}

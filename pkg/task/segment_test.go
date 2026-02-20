@@ -43,7 +43,7 @@ func TestIsSegmentInRange(t *testing.T) {
 				Create: baseTime,
 				Finish: baseTime.Add(time.Hour),
 			},
-			start:  timePtr(baseTime.Add(2 * time.Hour)),
+			start:  ptr(baseTime.Add(2 * time.Hour)),
 			finish: nil,
 			want:   false,
 		},
@@ -53,7 +53,7 @@ func TestIsSegmentInRange(t *testing.T) {
 				Create: baseTime,
 				Finish: baseTime.Add(time.Hour),
 			},
-			start:  timePtr(baseTime.Add(time.Hour)),
+			start:  ptr(baseTime.Add(time.Hour)),
 			finish: nil,
 			want:   false,
 		},
@@ -63,7 +63,7 @@ func TestIsSegmentInRange(t *testing.T) {
 				Create: baseTime,
 				Finish: baseTime.Add(2 * time.Hour),
 			},
-			start:  timePtr(baseTime.Add(time.Hour)),
+			start:  ptr(baseTime.Add(time.Hour)),
 			finish: nil,
 			want:   true,
 		},
@@ -74,7 +74,7 @@ func TestIsSegmentInRange(t *testing.T) {
 				Finish: baseTime.Add(2 * time.Hour),
 			},
 			start:  nil,
-			finish: timePtr(baseTime.Add(time.Hour)),
+			finish: ptr(baseTime.Add(time.Hour)),
 			want:   false,
 		},
 		{
@@ -84,7 +84,7 @@ func TestIsSegmentInRange(t *testing.T) {
 				Finish: baseTime.Add(time.Hour),
 			},
 			start:  nil,
-			finish: timePtr(baseTime.Add(time.Hour)),
+			finish: ptr(baseTime.Add(time.Hour)),
 			want:   true,
 		},
 		{
@@ -94,7 +94,7 @@ func TestIsSegmentInRange(t *testing.T) {
 				Finish: baseTime.Add(time.Hour),
 			},
 			start:  nil,
-			finish: timePtr(baseTime.Add(2 * time.Hour)),
+			finish: ptr(baseTime.Add(2 * time.Hour)),
 			want:   true,
 		},
 		{
@@ -103,8 +103,8 @@ func TestIsSegmentInRange(t *testing.T) {
 				Create: baseTime,
 				Finish: baseTime.Add(time.Hour),
 			},
-			start:  timePtr(baseTime.Add(-time.Hour)),
-			finish: timePtr(baseTime.Add(2 * time.Hour)),
+			start:  ptr(baseTime.Add(-time.Hour)),
+			finish: ptr(baseTime.Add(2 * time.Hour)),
 			want:   true,
 		},
 		{
@@ -113,8 +113,8 @@ func TestIsSegmentInRange(t *testing.T) {
 				Create: baseTime,
 				Finish: baseTime.Add(time.Hour),
 			},
-			start:  timePtr(baseTime.Add(2 * time.Hour)),
-			finish: timePtr(baseTime.Add(3 * time.Hour)),
+			start:  ptr(baseTime.Add(2 * time.Hour)),
+			finish: ptr(baseTime.Add(3 * time.Hour)),
 			want:   false,
 		},
 	}
@@ -155,8 +155,8 @@ func TestTask_HasSegmentsInRange(t *testing.T) {
 			segments: []*Segment{
 				{Create: baseTime, Finish: baseTime.Add(time.Hour)},
 			},
-			start:  timePtr(baseTime.Add(-time.Hour)),
-			finish: timePtr(baseTime.Add(2 * time.Hour)),
+			start:  ptr(baseTime.Add(-time.Hour)),
+			finish: ptr(baseTime.Add(2 * time.Hour)),
 			want:   true,
 		},
 		{
@@ -164,8 +164,8 @@ func TestTask_HasSegmentsInRange(t *testing.T) {
 			segments: []*Segment{
 				{Create: baseTime, Finish: baseTime.Add(time.Hour)},
 			},
-			start:  timePtr(baseTime.Add(2 * time.Hour)),
-			finish: timePtr(baseTime.Add(3 * time.Hour)),
+			start:  ptr(baseTime.Add(2 * time.Hour)),
+			finish: ptr(baseTime.Add(3 * time.Hour)),
 			want:   false,
 		},
 		{
@@ -183,8 +183,8 @@ func TestTask_HasSegmentsInRange(t *testing.T) {
 				{Create: baseTime, Finish: time.Time{}}, // Open
 				{Create: baseTime.Add(time.Hour), Finish: baseTime.Add(2 * time.Hour)}, // Closed in range
 			},
-			start:  timePtr(baseTime),
-			finish: timePtr(baseTime.Add(3 * time.Hour)),
+			start:  ptr(baseTime),
+			finish: ptr(baseTime.Add(3 * time.Hour)),
 			want:   true,
 		},
 	}
@@ -239,8 +239,8 @@ func TestTask_GetFilteredClosedSegmentsDuration(t *testing.T) {
 			segments: []*Segment{
 				{Create: baseTime, Finish: baseTime.Add(time.Hour)},
 			},
-			start:  timePtr(baseTime.Add(2 * time.Hour)),
-			finish: timePtr(baseTime.Add(3 * time.Hour)),
+			start:  ptr(baseTime.Add(2 * time.Hour)),
+			finish: ptr(baseTime.Add(3 * time.Hour)),
 			want:   0,
 		},
 		{
@@ -250,8 +250,8 @@ func TestTask_GetFilteredClosedSegmentsDuration(t *testing.T) {
 				{Create: baseTime.Add(2 * time.Hour), Finish: baseTime.Add(3 * time.Hour)}, // In range: 1h
 				{Create: baseTime.Add(5 * time.Hour), Finish: baseTime.Add(6 * time.Hour)}, // Out of range
 			},
-			start:  timePtr(baseTime.Add(-time.Hour)),
-			finish: timePtr(baseTime.Add(4 * time.Hour)),
+			start:  ptr(baseTime.Add(-time.Hour)),
+			finish: ptr(baseTime.Add(4 * time.Hour)),
 			want:   2 * time.Hour,
 		},
 		{
@@ -429,6 +429,7 @@ func TestTask_GetCurrentSegmentDuration(t *testing.T) {
 			if tt.expectNonZero && got == 0 {
 				t.Error("GetCurrentSegmentDuration() = 0, want non-zero")
 			}
+
 			if !tt.expectNonZero && got != 0 {
 				t.Errorf("GetCurrentSegmentDuration() = %v, want 0", got)
 			}
@@ -575,7 +576,7 @@ func TestTask_GetThisWeekDuration(t *testing.T) {
 	}
 }
 
-// Helper function to create a time pointer
-func timePtr(t time.Time) *time.Time {
-	return &t
+// ptr returns a pointer to the given value.
+func ptr[T any](v T) *T {
+	return &v
 }
