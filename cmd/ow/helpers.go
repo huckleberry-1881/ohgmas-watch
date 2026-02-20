@@ -1,3 +1,4 @@
+// Package main provides the command-line interface for ohgmas-watch.
 package main
 
 import (
@@ -7,13 +8,13 @@ import (
 
 // formatDuration formats a duration into a human-readable string.
 // Returns "0m" for zero durations.
-func formatDuration(d time.Duration) string {
-	if d == 0 {
+func formatDuration(duration time.Duration) string {
+	if duration == 0 {
 		return "0m"
 	}
 
-	hours := int(d.Hours())
-	minutes := int(d.Minutes()) % 60
+	hours := int(duration.Hours())
+	minutes := int(duration.Minutes()) % 60
 
 	if hours > 0 {
 		return fmt.Sprintf("%dh%02dm", hours, minutes)
@@ -48,9 +49,9 @@ func parseTimeFlags(startFlag, finishFlag string) (*time.Time, *time.Time, error
 }
 
 // getMondayOfWeek returns the Monday of the week containing the given time at 00:00:00.
-func getMondayOfWeek(t time.Time) time.Time {
+func getMondayOfWeek(when time.Time) time.Time {
 	// Get the current weekday (0 = Sunday, 1 = Monday, etc.)
-	currentWeekday := int(t.Weekday())
+	currentWeekday := int(when.Weekday())
 
 	// Calculate days to subtract to get to Monday
 	var daysBack int
@@ -61,7 +62,7 @@ func getMondayOfWeek(t time.Time) time.Time {
 	}
 
 	// Get Monday's date
-	monday := t.AddDate(0, 0, -daysBack)
+	monday := when.AddDate(0, 0, -daysBack)
 
 	// Set to beginning of day (00:00:00)
 	return time.Date(monday.Year(), monday.Month(), monday.Day(), 0, 0, 0, 0, monday.Location())

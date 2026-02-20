@@ -4,14 +4,15 @@ import "time"
 
 // isSegmentInRange checks if a closed segment falls within the specified time range.
 // Returns true if the segment is closed and its finish time is within the range.
+// Uses exclusive lower bound (segment.Finish > start) to match GetThisWeekDuration logic.
 func isSegmentInRange(segment *Segment, start, finish *time.Time) bool {
 	// Only consider closed segments
 	if segment.Finish.IsZero() {
 		return false
 	}
 
-	// Check if segment finished before the start time
-	if start != nil && segment.Finish.Before(*start) {
+	// Check if segment finished at or before the start time (exclusive lower bound)
+	if start != nil && !segment.Finish.After(*start) {
 		return false
 	}
 

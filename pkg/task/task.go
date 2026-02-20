@@ -90,6 +90,7 @@ func (t *Task) GetClosedSegmentsDuration() time.Duration {
 	return totalDuration
 }
 
+// DefaultTasksFileName is the default filename for storing tasks.
 const DefaultTasksFileName = ".ohgmas-tasks.yaml"
 
 // GetTasksFilePath gets the path to the tasks file in user's home directory.
@@ -119,7 +120,7 @@ func (w *Watch) SaveTasksToFile(filePath string) error {
 
 // LoadTasksFromFile loads tasks from YAML file at specified path.
 func (w *Watch) LoadTasksFromFile(filePath string) error {
-	data, err := os.ReadFile(filePath)
+	data, err := os.ReadFile(filePath) //nolint:gosec // File path is provided by the caller for intended file loading
 	if err != nil {
 		if os.IsNotExist(err) {
 			w.Tasks = []*Task{} // Set empty slice if file doesn't exist
