@@ -11,14 +11,14 @@ func isSegmentInRange(segment *Segment, start, finish *time.Time) bool {
 		return false
 	}
 
-	// Check if segment finished before the start time (inclusive lower bound)
-	if start != nil && segment.Finish.Before(*start) {
+	// Check if segment finished at or before the start time (exclusive lower bound)
+	if start != nil && !segment.Finish.After(*start) {
 		return false
 	}
 
-	// Check if segment finished at or after the finish time (exclusive upper bound)
-	// A segment is included if: start <= segment.Finish < finish
-	if finish != nil && (segment.Finish.After(*finish) || segment.Finish.Equal(*finish)) {
+	// Check if segment finished after the finish time (inclusive upper bound)
+	// A segment is included if: start < segment.Finish <= finish
+	if finish != nil && segment.Finish.After(*finish) {
 		return false
 	}
 
