@@ -15,8 +15,10 @@ linters:
           - funlen
           - varnamelen
           - prealloc
-          - modernize
   settings:
+    modernize:
+      disable:
+        - newexpr
     depguard:
       rules:
         main:
