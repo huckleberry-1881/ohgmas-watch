@@ -123,6 +123,7 @@ func (w *Watch) GetEarliestAndLatestSegmentTimes() (time.Time, time.Time) {
 
 	for _, task := range w.Tasks {
 		task.mu.RLock()
+
 		for _, segment := range task.Segments {
 			// Check earliest
 			if earliest.IsZero() || segment.Create.Before(earliest) {
@@ -139,6 +140,7 @@ func (w *Watch) GetEarliestAndLatestSegmentTimes() (time.Time, time.Time) {
 				latest = segmentEnd
 			}
 		}
+
 		task.mu.RUnlock()
 	}
 

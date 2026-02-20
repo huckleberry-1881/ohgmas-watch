@@ -11,7 +11,14 @@ linters:
           - gocyclo
           - gosmopolitan
           - gosec
+          - exhaustruct
+          - funlen
+          - varnamelen
+          - prealloc
   settings:
+    modernize:
+      disable:
+        - newexpr
     depguard:
       rules:
         main:
