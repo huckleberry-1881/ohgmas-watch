@@ -140,7 +140,7 @@ func TestLoadWatchForSummary(t *testing.T) {
 		}
 
 		// Load it back.
-		watch, err := loadWatchForSummary(filePath)
+		watch, err := loadWatchForSummary(filePath, false)
 		if err != nil {
 			t.Errorf("loadWatchForSummary() error = %v", err)
 		}
@@ -162,7 +162,7 @@ func TestLoadWatchForSummary(t *testing.T) {
 			t.Fatalf("Failed to write test file: %v", err)
 		}
 
-		_, err = loadWatchForSummary(filePath)
+		_, err = loadWatchForSummary(filePath, false)
 		if err == nil {
 			t.Error("loadWatchForSummary() should return error for invalid YAML")
 		}
@@ -174,7 +174,7 @@ func TestLoadWatchForSummary(t *testing.T) {
 		tmpDir := t.TempDir()
 		filePath := filepath.Join(tmpDir, "nonexistent.yaml")
 
-		watch, err := loadWatchForSummary(filePath)
+		watch, err := loadWatchForSummary(filePath, false)
 		if err != nil {
 			t.Errorf("loadWatchForSummary() unexpected error = %v", err)
 		}
@@ -338,7 +338,7 @@ func TestGenerateSummary_NoSegments(t *testing.T) { //nolint:paralleltest // std
 	var genErr error
 
 	output := captureStdout(t, func() {
-		genErr = generateSummary(false, nil, nil, filePath)
+		genErr = generateSummary(false, nil, nil, filePath, false)
 	})
 
 	if genErr != nil {
@@ -380,7 +380,7 @@ func generateSummaryTestHelper(t *testing.T, taskName, tag string, includeTasks 
 	var genErr error
 
 	output := captureStdout(t, func() {
-		genErr = generateSummary(includeTasks, nil, nil, filePath)
+		genErr = generateSummary(includeTasks, nil, nil, filePath, false)
 	})
 
 	if genErr != nil {
@@ -439,7 +439,7 @@ func TestGenerateSummary_WithTimeFilter(t *testing.T) { //nolint:paralleltest //
 	var genErr error
 
 	output := captureStdout(t, func() {
-		genErr = generateSummary(false, &filterStart, &filterFinish, filePath)
+		genErr = generateSummary(false, &filterStart, &filterFinish, filePath, false)
 	})
 
 	if genErr != nil {
@@ -464,7 +464,7 @@ func TestGenerateSummary_InvalidFile(t *testing.T) {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
-	err = generateSummary(false, nil, nil, filePath)
+	err = generateSummary(false, nil, nil, filePath, false)
 	if err == nil {
 		t.Error("generateSummary() should return error for invalid file")
 	}

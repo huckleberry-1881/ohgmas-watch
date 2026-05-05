@@ -90,21 +90,80 @@ func (t *Task) GetClosedSegmentsDuration() time.Duration {
 	return totalDuration
 }
 
-// DefaultTasksFileName is the default filename for storing tasks.
-const DefaultTasksFileName = ".ohgmas-tasks.yaml"
+// DefaultTasksDir is the directory under the user's home directory where quarter files are stored.
+const DefaultTasksDir = "ohgmas"
 
-// GetTasksFilePath gets the path to the tasks file in user's home directory.
-func GetTasksFilePath() string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return DefaultTasksFileName
-	}
-
-	return filepath.Join(homeDir, DefaultTasksFileName)
+// GetCurrentFiscalQuarter returns the fiscal year and quarter for the current time.
+// The fiscal year starts in October: Q1 = Oct-Dec, Q2 = Jan-Mar, Q3 = Apr-Jun, Q4 = Jul-Sep.
+// The fiscal year for Oct-Dec is the following calendar year (e.g., Oct 2025 is FY2026 Q1).
+func GetCurrentFiscalQuarter() (year, quarter int) { //nolint:nonamedreturns // names aid readability
+	return GetFiscalQuarterForTime(time.Now())
 }
 
-// SaveTasksToFile saves tasks to YAML file at specified path.
+// GetFiscalQuarterForTime returns the fiscal year and quarter for the given time.
+func GetFiscalQuarterForTime(t time.Time) (year, quarter int) { //nolint:nonamedreturns // names aid readability
+	month := int(t.Month())
+	calYear := t.Year()
+
+	switch {
+	case month >= 10:
+		return calYear + 1, 1
+	case month <= 3:
+		return calYear, 2
+	case month <= 6:
+		return calYear, 3
+	default:
+		return calYear, 4
+	}
+}
+
+// GetTasksDir returns the directory where quarter files are stored.
+func GetTasksDir() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return DefaultTasksDir
+	}
+
+	return filepath.Join(homeDir, DefaultTasksDir)
+}
+
+// GetQuarterFileName returns the filename for the given fiscal year and quarter (e.g., "2026-F3.yaml").
+func GetQuarterFileName(year, quarter int) string {
+	return fmt.Sprintf("%d-F%d.yaml", year, quarter)
+}
+
+// GetTasksFilePath returns the path to the current fiscal quarter's tasks file.
+func GetTasksFilePath() string {
+	year, quarter := GetCurrentFiscalQuarter()
+
+	return filepath.Join(GetTasksDir(), GetQuarterFileName(year, quarter))
+}
+
+// GetAllQuarterFilePaths returns the paths of all *.yaml files in the tasks directory.
+// Returns an empty slice if the directory does not exist.
+func GetAllQuarterFilePaths() ([]string, error) {
+	dir := GetTasksDir()
+
+	_, err := os.Stat(dir)
+	if os.IsNotExist(err) {
+		return []string{}, nil
+	}
+
+	matches, err := filepath.Glob(filepath.Join(dir, "*.yaml"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to glob quarter files: %w", err)
+	}
+
+	return matches, nil
+}
+
+// SaveTasksToFile saves tasks to YAML file at specified path. Creates parent directory if needed.
 func (w *Watch) SaveTasksToFile(filePath string) error {
+	err := os.MkdirAll(filepath.Dir(filePath), 0700)
+	if err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
 	data, err := yaml.Marshal(w.Tasks)
 	if err != nil {
 		return fmt.Errorf("unable to yaml marshal: %w", err)
@@ -134,6 +193,33 @@ func (w *Watch) LoadTasksFromFile(filePath string) error {
 	err = yaml.Unmarshal(data, &w.Tasks)
 	if err != nil {
 		return fmt.Errorf("unable to yaml unmarshal: %w", err)
+	}
+
+	return nil
+}
+
+// LoadTasksFromFiles loads and merges tasks from multiple YAML files.
+func (w *Watch) LoadTasksFromFiles(filePaths []string) error {
+	w.Tasks = []*Task{}
+
+	for _, filePath := range filePaths {
+		var loaded []*Task
+
+		data, err := os.ReadFile(filePath) //nolint:gosec // File path is provided by the caller for intended file loading
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+
+			return fmt.Errorf("unable to read file %s: %w", filePath, err)
+		}
+
+		err = yaml.Unmarshal(data, &loaded)
+		if err != nil {
+			return fmt.Errorf("unable to yaml unmarshal %s: %w", filePath, err)
+		}
+
+		w.Tasks = append(w.Tasks, loaded...)
 	}
 
 	return nil
