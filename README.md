@@ -6,7 +6,7 @@ A utility to aid in time management to track what is consuming the most time in 
 
 ### Interactive Mode
 
-Run `./ow` to launch the TUI. Use `--file /path/to/tasks.yaml` for a custom data file (defaults to `~/.ohgmas-tasks.yaml`).
+Run `./ow` to launch the TUI. Tasks are stored per fiscal quarter in `~/ohgmas/YYYY-FD.yaml` (fiscal year starts in October; e.g., `~/ohgmas/2026-F3.yaml` for Apr-Jun 2026). Use `--file /path/to/tasks.yaml` for a custom data file.
 
 #### Key Bindings
 
@@ -26,10 +26,13 @@ Run `./ow` to launch the TUI. Use `--file /path/to/tasks.yaml` for a custom data
 ### Summary Mode
 
 ```bash
-./ow --summary              # weekly summaries by tagset
+./ow --summary              # weekly summaries by tagset (current quarter)
+./ow --summary --all        # aggregate across all quarter files in ~/ohgmas/
 ./ow --summary --tasks      # include individual task breakdowns
 ./ow --summary --start 2024-01-01T00:00:00Z --finish 2024-12-31T23:59:59Z
 ```
+
+`--all` only applies to `--summary` and is mutually exclusive with `--file`.
 
 ## Build
 

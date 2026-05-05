@@ -394,3 +394,127 @@ func TestWatch_RoundTrip_PreservesAllFields(t *testing.T) {
 		t.Error("Open segment Finish should be zero")
 	}
 }
+
+func TestWatch_LoadTasksFromFiles_MergesMultiple(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	pathA := filepath.Join(tmpDir, "2026-F1.yaml")
+	pathB := filepath.Join(tmpDir, "2026-F2.yaml")
+
+	watchA := &Watch{Tasks: []*Task{{Name: "Task A", Category: categoryWork}}}
+
+	saveErr := watchA.SaveTasksToFile(pathA)
+	if saveErr != nil {
+		t.Fatalf("SaveTasksToFile() error = %v", saveErr)
+	}
+
+	watchB := &Watch{Tasks: []*Task{
+		{Name: "Task B", Category: categoryCompleted},
+		{Name: "Task C", Category: categoryBacklog},
+	}}
+
+	saveErr = watchB.SaveTasksToFile(pathB)
+	if saveErr != nil {
+		t.Fatalf("SaveTasksToFile() error = %v", saveErr)
+	}
+
+	merged := &Watch{Tasks: []*Task{}}
+
+	err := merged.LoadTasksFromFiles([]string{pathA, pathB})
+	if err != nil {
+		t.Fatalf("LoadTasksFromFiles() error = %v", err)
+	}
+
+	if len(merged.Tasks) != 3 {
+		t.Errorf("Loaded %d tasks, want 3", len(merged.Tasks))
+	}
+}
+
+func TestWatch_LoadTasksFromFiles_SkipsMissing(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	existing := filepath.Join(tmpDir, "2026-F1.yaml")
+	missing := filepath.Join(tmpDir, "2026-F4.yaml")
+
+	watch := &Watch{Tasks: []*Task{{Name: "Task A", Category: categoryWork}}}
+
+	saveErr := watch.SaveTasksToFile(existing)
+	if saveErr != nil {
+		t.Fatalf("SaveTasksToFile() error = %v", saveErr)
+	}
+
+	merged := &Watch{Tasks: []*Task{}}
+
+	err := merged.LoadTasksFromFiles([]string{existing, missing})
+	if err != nil {
+		t.Fatalf("LoadTasksFromFiles() should ignore missing files, got error = %v", err)
+	}
+
+	if len(merged.Tasks) != 1 {
+		t.Errorf("Loaded %d tasks, want 1", len(merged.Tasks))
+	}
+}
+
+func TestWatch_LoadTasksFromFiles_PropagatesYAMLError(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	bad := filepath.Join(tmpDir, "2026-F1.yaml")
+
+	writeErr := os.WriteFile(bad, []byte("not: valid: yaml: ["), 0600)
+	if writeErr != nil {
+		t.Fatalf("WriteFile() error = %v", writeErr)
+	}
+
+	merged := &Watch{Tasks: []*Task{}}
+
+	err := merged.LoadTasksFromFiles([]string{bad})
+	if err == nil {
+		t.Error("LoadTasksFromFiles() should return error for invalid YAML")
+	}
+}
+
+func TestGetAllQuarterFilePaths(t *testing.T) {
+	// Cannot run in parallel: t.Setenv mutates process env.
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+
+	t.Run("missing directory returns empty slice", func(t *testing.T) { //nolint:paralleltest // shares env with parent
+		paths, err := GetAllQuarterFilePaths()
+		if err != nil {
+			t.Errorf("GetAllQuarterFilePaths() unexpected error = %v", err)
+		}
+
+		if len(paths) != 0 {
+			t.Errorf("Expected empty slice, got %d paths", len(paths))
+		}
+	})
+
+	t.Run("returns yaml files in tasks dir", func(t *testing.T) { //nolint:paralleltest // shares env with parent
+		dir := filepath.Join(tmpHome, DefaultTasksDir)
+
+		mkErr := os.MkdirAll(dir, 0700)
+		if mkErr != nil {
+			t.Fatalf("MkdirAll() error = %v", mkErr)
+		}
+
+		// Create two yaml files and one non-yaml file (which should be skipped).
+		for _, name := range []string{"2026-F1.yaml", "2026-F2.yaml", "notes.txt"} {
+			writeErr := os.WriteFile(filepath.Join(dir, name), []byte("[]"), 0600)
+			if writeErr != nil {
+				t.Fatalf("WriteFile() error = %v", writeErr)
+			}
+		}
+
+		paths, err := GetAllQuarterFilePaths()
+		if err != nil {
+			t.Errorf("GetAllQuarterFilePaths() unexpected error = %v", err)
+		}
+
+		if len(paths) != 2 {
+			t.Errorf("Expected 2 yaml paths, got %d: %v", len(paths), paths)
+		}
+	})
+}

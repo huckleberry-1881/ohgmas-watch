@@ -9,8 +9,8 @@ import (
 )
 
 // generateSummary generates and prints a weekly summary grouped by tagset.
-func generateSummary(includeTasks bool, start, finish *time.Time, filePath string) error {
-	watch, err := loadWatchForSummary(filePath)
+func generateSummary(includeTasks bool, start, finish *time.Time, filePath string, all bool) error {
+	watch, err := loadWatchForSummary(filePath, all)
 	if err != nil {
 		return err
 	}
@@ -31,17 +31,27 @@ func generateSummary(includeTasks bool, start, finish *time.Time, filePath strin
 	return nil
 }
 
-// loadWatchForSummary loads the watch from the specified file or default location.
-func loadWatchForSummary(filePath string) (*task.Watch, error) {
+// loadWatchForSummary loads the watch from the specified file, all quarter files, or the default location.
+func loadWatchForSummary(filePath string, all bool) (*task.Watch, error) {
 	watch := &task.Watch{
 		Tasks: []*task.Task{},
 	}
 
 	var err error
 
-	if filePath != "" {
+	switch {
+	case all:
+		var paths []string
+
+		paths, err = task.GetAllQuarterFilePaths()
+		if err != nil {
+			return nil, fmt.Errorf("failed to find quarter files: %w", err)
+		}
+
+		err = watch.LoadTasksFromFiles(paths)
+	case filePath != "":
 		err = watch.LoadTasksFromFile(filePath)
-	} else {
+	default:
 		err = watch.LoadTasks()
 	}
 

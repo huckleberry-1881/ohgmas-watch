@@ -1,17 +1,6 @@
 # ohgmas-watch
 
-## Project Overview
-
-ohgmas-watch is a terminal-based time tracking utility written in Go that helps users monitor and analyze how they spend their work time. It provides an interactive TUI (Terminal User Interface) for managing tasks and tracking time segments, along with powerful reporting capabilities to generate weekly summaries grouped by task categories and tags.
-
-## Purpose
-
-The application serves as a time management aid to:
-- Track time spent on different work tasks
-- Organize tasks with tags and categories
-- Monitor active and completed work
-- Generate reports showing time allocation across weeks and task categories
-- Help identify what's consuming the most time in a workday
+A Go-based terminal time tracking utility. Provides an interactive TUI for managing tasks/segments and a CLI summary mode for weekly reports grouped by tag combinations.
 
 ## Architecture
 
@@ -51,7 +40,7 @@ ohgmas-watch/
 The `Watch` struct is the main container for all tasks being tracked:
 - Holds a collection of tasks
 - Thread-safe operations using `sync.RWMutex`
-- Persists to YAML file (`~/.ohgmas-tasks.yaml` by default)
+- Persists to per-quarter YAML files in `~/ohgmas/` by default (see [Data Persistence](#data-persistence))
 
 #### 2. Task (`pkg/task/types.go`)
 Represents an individual work item:
@@ -113,9 +102,16 @@ Tasks can have multiple tags for flexible categorization. Tags are used for:
 - Segments can have optional notes describing the work done
 
 ### Data Persistence
-- Tasks are stored in YAML format
-- Default location: `~/.ohgmas-tasks.yaml`
-- Custom location can be specified with `--file` flag
+- Tasks are stored in YAML format, split per fiscal quarter
+- Default location: `~/ohgmas/YYYY-FD.yaml` where `YYYY` is the fiscal year and `D` is the quarter (1-4)
+- Fiscal year starts in October:
+  - Q1: Oct-Dec (fiscal year = calendar year + 1, so Oct 2025 → `2026-F1.yaml`)
+  - Q2: Jan-Mar
+  - Q3: Apr-Jun
+  - Q4: Jul-Sep
+- The `~/ohgmas/` directory is created automatically on first save
+- Custom location can be specified with `--file` flag (single file, overrides quarter behavior)
+- `--summary --all` aggregates across all quarter files in `~/ohgmas/` (incompatible with `--file`, summary-only)
 - Thread-safe read/write operations
 - Automatic saving after each modification
 
@@ -123,7 +119,7 @@ Tasks can have multiple tags for flexible categorization. Tags are used for:
 
 ### Interactive TUI Mode (Default)
 
-Launch the application:
+Launch the application (loads/saves the current fiscal quarter's file in `~/ohgmas/`):
 ```bash
 ./ow
 ```
@@ -132,6 +128,8 @@ Or with a custom data file:
 ```bash
 ./ow --file /path/to/tasks.yaml
 ```
+
+The TUI always operates on a single file. `--all` is rejected in TUI mode because saving would consolidate multiple quarter files into one.
 
 #### TUI Controls
 
@@ -202,6 +200,13 @@ Use custom data file:
 ./ow --summary --file /path/to/tasks.yaml
 ```
 
+Aggregate across all quarter files in `~/ohgmas/`:
+```bash
+./ow --summary --all
+```
+
+`--all` is incompatible with `--file` and is only valid alongside `--summary`.
+
 #### Summary Output Format
 
 ```
@@ -247,8 +252,8 @@ go test -coverprofile=coverage.out ./pkg/task/... && go tool cover -func=coverag
 
 | Package | Coverage |
 |---------|----------|
-| `pkg/task` | **97.5%** |
-| `cmd/ow` | **18.8%** |
+| `pkg/task` | **96.6%** |
+| `cmd/ow` | **18.2%** |
 
 **pkg/task** has comprehensive tests for all business logic:
 
@@ -293,69 +298,6 @@ GitHub Actions runs two workflows:
 - Runs on `ubuntu-latest` and `macos-latest` matrix
 - Uses golangci-lint v2.3
 - Triggered on push to main and all PRs
-
-## Code Organization
-
-### Package: `pkg/task`
-
-This package contains all core business logic and is designed to be thread-safe and reusable.
-
-#### Key Files
-
-**[types.go](pkg/task/types.go)**
-- Data structure definitions (Watch, Task, Segment)
-- Thread-safety via mutexes
-
-**[task.go](pkg/task/task.go)**
-- Task and segment CRUD operations
-- File I/O operations
-- Category management
-- Sorting and filtering logic
-
-**[segment.go](pkg/task/segment.go)**
-- Segment time range filtering
-- Duration calculations
-- Activity tracking
-
-**[summary.go](pkg/task/summary.go)**
-- Weekly summary generation
-- Tagset grouping
-- Report data structures
-
-**[interfaces.go](pkg/task/interfaces.go)**
-- Interface definitions for task management
-- `Manager` interface for Watch operations
-- `TimeTracker` interface for Task operations
-- `Persister` interface for file I/O
-- Compile-time interface compliance checks
-
-### Package: `cmd/ow`
-
-The main application package containing the TUI and CLI interface.
-
-**[main.go](cmd/ow/main.go)**
-- CLI entry point
-- Command-line flag parsing
-- Mode dispatch (TUI vs summary)
-
-**[ui.go](cmd/ow/ui.go)**
-- `App` struct holding all TUI state
-- Component initialization (`initTable`, `initDescriptionView`, etc.)
-- Key handlers (`handleKeyEvent`, `handleRuneKey`)
-- Form dialogs (new task, modify task, segment with note)
-- Error dialog for save failures
-- Task deletion with confirmation
-- Segment details view
-
-**[summary.go](cmd/ow/summary.go)**
-- CLI summary generation (`generateSummary`)
-- Weekly report formatting
-- Task filtering and display
-
-**[helpers.go](cmd/ow/helpers.go)**
-- Duration formatting (`formatDuration`)
-- Time parsing utilities (`parseTimeFlags`)
-- Week calculation functions (`getMondayOfWeek`, `getLastMonday`, `getWeekStarts`)
 
 ## Key Concepts
 
@@ -439,77 +381,4 @@ Based on recent commit history:
 - `refactor:` for code refactoring
 - Use descriptive commit messages
 - Reference PR numbers when applicable
-
-## Recent Changes
-
-Based on git history:
-
-1. **Summary formatting** - Updated summary output to be more useful
-2. **Code optimization** - Light optimizations in duplicated code and minor tweaks
-3. **Weekly statistics and categories** - Implemented weekly reporting and category system
-4. **Package refactoring** - Moved items out into packages for better organization
-5. **UI refactoring** - Separated TUI code into App struct pattern with `ui.go`, `summary.go`, and `helpers.go`
-6. **Test suites** - Comprehensive test coverage for `pkg/task` (97.5%) and `cmd/ow` helpers/summary
-7. **Removed unused code** - Deleted `config.go`, `doc.go`, `integration_test.go`, `yaml_test.go`
-
-## File Locations
-
-- **Tasks data:** `~/.ohgmas-tasks.yaml` (default)
-- **Binary:** `./ow` (after build)
-- **CLI source:** `./cmd/ow/main.go`
-- **TUI source:** `./cmd/ow/ui.go`
-- **Summary source:** `./cmd/ow/summary.go`
-- **Business logic:** `./pkg/task/`
-- **pkg/task tests:** `./pkg/task/*_test.go`
-- **cmd/ow tests:** `./cmd/ow/*_test.go`
-- **Lint config:** `./.golangci.yml`
-- **Git ignore:** `./.gitignore`
-
-## API Reference (for developers)
-
-### Watch Methods
-
-```go
-// Task Management
-AddTask(name, description string, tags []string, category string)
-GetTasksByCategory(category string) []*Task
-GetTasksSortedByActivity() []*Task
-GetTasksSortedByActivityWithFilter(categoryFilter string) []*Task
-GetTaskIndex(task *Task) int
-
-// Persistence
-SaveTasks() error
-LoadTasks() error
-SaveTasksToFile(filePath string) error
-LoadTasksFromFile(filePath string) error
-
-// Reporting
-GetSummaryByTagset(start, finish *time.Time) []TagsetSummary
-GetWeeklySummaryByTagset(weekStarts []time.Time) []WeeklySummary
-GetWeeklySummaryByTagsetWithTasks(weekStarts []time.Time) []WeeklySummary
-GetEarliestAndLatestSegmentTimes() (time.Time, time.Time)
-```
-
-### Task Methods
-
-```go
-// Segment Management
-AddSegment(note string)
-CloseSegment()
-HasUnclosedSegment() bool
-GetLastSegment() *Segment
-
-// Duration Calculations
-GetClosedSegmentsDuration() time.Duration
-GetCurrentSegmentDuration() time.Duration
-GetFilteredClosedSegmentsDuration(start, finish *time.Time) time.Duration
-GetThisWeekDuration(weekStart time.Time) time.Duration
-
-// Metadata
-SetCategory(category string)
-GetCategory() string
-GetLastActivity() time.Time
-IsActive() bool
-HasSegmentsInRange(start, finish *time.Time) bool
-```
 

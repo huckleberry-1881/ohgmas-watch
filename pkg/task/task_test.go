@@ -1,6 +1,7 @@
 package task //nolint:testpackage // tests unexported functions
 
 import (
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -547,8 +548,67 @@ func TestGetTasksFilePath(t *testing.T) {
 		t.Error("GetTasksFilePath() returned empty string")
 	}
 
-	// Should contain the default filename
-	if path != DefaultTasksFileName && len(path) < len(DefaultTasksFileName) {
-		t.Errorf("GetTasksFilePath() = %q, should contain %q", path, DefaultTasksFileName)
+	// Should be inside the tasks directory
+	if !strings.HasPrefix(path, GetTasksDir()) {
+		t.Errorf("GetTasksFilePath() = %q, should be inside %q", path, GetTasksDir())
+	}
+
+	// Should match the current fiscal quarter filename
+	year, quarter := GetCurrentFiscalQuarter()
+	if !strings.HasSuffix(path, GetQuarterFileName(year, quarter)) {
+		t.Errorf("GetTasksFilePath() = %q, should end with %q", path, GetQuarterFileName(year, quarter))
+	}
+}
+
+func TestGetFiscalQuarterForTime(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		when        time.Time
+		wantYear    int
+		wantQuarter int
+	}{
+		{"october starts Q1 of next FY", time.Date(2025, 10, 1, 0, 0, 0, 0, time.UTC), 2026, 1},
+		{"december is Q1 of next FY", time.Date(2025, 12, 31, 23, 59, 59, 0, time.UTC), 2026, 1},
+		{"january is Q2", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), 2026, 2},
+		{"march is Q2", time.Date(2026, 3, 31, 23, 59, 59, 0, time.UTC), 2026, 2},
+		{"april is Q3", time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC), 2026, 3},
+		{"june is Q3", time.Date(2026, 6, 30, 23, 59, 59, 0, time.UTC), 2026, 3},
+		{"july is Q4", time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), 2026, 4},
+		{"september is Q4", time.Date(2026, 9, 30, 23, 59, 59, 0, time.UTC), 2026, 4},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			year, quarter := GetFiscalQuarterForTime(tt.when)
+			if year != tt.wantYear || quarter != tt.wantQuarter {
+				t.Errorf("GetFiscalQuarterForTime(%v) = (%d, %d), want (%d, %d)",
+					tt.when, year, quarter, tt.wantYear, tt.wantQuarter)
+			}
+		})
+	}
+}
+
+func TestGetQuarterFileName(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		year    int
+		quarter int
+		want    string
+	}{
+		{2026, 1, "2026-F1.yaml"},
+		{2026, 3, "2026-F3.yaml"},
+		{2025, 4, "2025-F4.yaml"},
+	}
+
+	for _, tt := range tests {
+		got := GetQuarterFileName(tt.year, tt.quarter)
+		if got != tt.want {
+			t.Errorf("GetQuarterFileName(%d, %d) = %q, want %q", tt.year, tt.quarter, got, tt.want)
+		}
 	}
 }

@@ -17,9 +17,16 @@ func main() {
 	finishFlag := flag.String("finish", "",
 		"Filter segments to only include those closed before this datetime (RFC3339 format: 2006-01-02T15:04:05Z)")
 	fileFlag := flag.String("file", "",
-		"Path to a custom YAML file for task storage (default: ~/.ohgmas-tasks.yaml)")
+		"Path to a custom YAML file for task storage (default: ~/ohgmas/YYYY-FD.yaml for the current fiscal quarter)")
+	allFlag := flag.Bool("all", false,
+		"Load all quarter files in ~/ohgmas/ (only valid with --summary; incompatible with --file)")
 
 	flag.Parse()
+
+	if *allFlag && *fileFlag != "" {
+		fmt.Fprintf(os.Stderr, "Error: --all cannot be used with --file\n")
+		os.Exit(1)
+	}
 
 	// Check if summary flag was provided
 	if *summaryFlag {
@@ -29,7 +36,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		err = generateSummary(*tasksFlag, start, finish, *fileFlag)
+		err = generateSummary(*tasksFlag, start, finish, *fileFlag, *allFlag)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
@@ -41,6 +48,11 @@ func main() {
 	// Check if tasks flag was provided without summary
 	if *tasksFlag {
 		fmt.Fprintf(os.Stderr, "Error: --tasks flag requires --summary flag\n")
+		os.Exit(1)
+	}
+
+	if *allFlag {
+		fmt.Fprintf(os.Stderr, "Error: --all flag requires --summary flag\n")
 		os.Exit(1)
 	}
 
