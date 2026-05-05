@@ -252,8 +252,8 @@ go test -coverprofile=coverage.out ./pkg/task/... && go tool cover -func=coverag
 
 | Package | Coverage |
 |---------|----------|
-| `pkg/task` | **97.5%** |
-| `cmd/ow` | **18.8%** |
+| `pkg/task` | **96.6%** |
+| `cmd/ow` | **18.2%** |
 
 **pkg/task** has comprehensive tests for all business logic:
 
